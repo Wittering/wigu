@@ -1,0 +1,63 @@
+name: wigu
+description: "Career Insight Engine - A reflective tool for career exploration and development"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Core dependencies for the career insight engine
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.2
+  http: ^1.2.0
+  vector_math: ^2.1.4
+  flutter_animate: ^4.5.0
+  
+  # State management and persistence
+  flutter_riverpod: ^2.4.9
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.1.2
+  
+  # Document export functionality
+  docx_template: ^0.4.0
+  file_saver: ^0.2.13
+  
+  # Markdown rendering
+  flutter_markdown: ^0.7.4+1
+  
+  # Archive for ZIP file creation (Word docs are ZIP files)
+  archive: ^3.6.1
+  
+  # Career-specific dependencies
+  url_launcher: ^6.2.4
+  share_plus: ^7.2.2
+  
+  # Logging and analytics
+  logger: ^2.0.2+1
+  
+  # Charts for career visualisation
+  fl_chart: ^0.68.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^4.0.0
+  
+  # Code generation for Hive
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.7
+
+flutter:
+  uses-material-design: true
+
+  # Assets for career-related imagery and icons
+  assets:
+    - assets/images/
+    - assets/icons/

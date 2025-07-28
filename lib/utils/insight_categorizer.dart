@@ -978,7 +978,7 @@ class InsightCategorizer {
   
   int _calculateLeverageability(int skillLevel, int energyLevel, int recognitionLevel, int applicationCount) {
     final averageScore = (skillLevel + energyLevel + recognitionLevel) / 3.0;
-    final applicationBonus = min(1, applicationCount / 3.0);
+    final applicationBonus = min(1.0, applicationCount / 3.0);
     return (averageScore + applicationBonus).round().clamp(1, 5);
   }
   
@@ -1039,7 +1039,7 @@ class InsightCategorizer {
   double _calculateHiddenStrengthConfidence(Map<String, dynamic> advisorData) {
     final credibility = advisorData['total_credibility'] ?? 0.0;
     final frequency = advisorData['frequency'] ?? 0;
-    return ((credibility / 5.0) * 0.7 + min(1.0, frequency / 3.0) * 0.3).clamp(0.0, 1.0);
+    return ((credibility / 5.0) * 0.7 + min<double>(1.0, frequency / 3.0) * 0.3).clamp(0.0, 1.0);
   }
   
   List<String> _identifyDrainFactors(String activityName, Map<String, dynamic> drainData) {

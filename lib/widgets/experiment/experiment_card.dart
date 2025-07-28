@@ -543,9 +543,9 @@ class ExperimentCard extends StatelessWidget {
       case ExperimentType.valueAlignment:
         return CareerTheme.primaryGreen;
       case ExperimentType.creativityExpression:
-        return AppTheme.accentOrange;
+        return CareerTheme.accentOrange;
       case ExperimentType.mentoring:
-        return AppTheme.accentPurple;
+        return CareerTheme.accentPurple;
     }
   }
 
@@ -569,7 +569,7 @@ class ExperimentCard extends StatelessWidget {
       case ExperimentPriority.low:
         return AppTheme.mutedText;
       case ExperimentPriority.medium:
-        return AppTheme.primaryBlue;
+        return CareerTheme.primaryBlue;
       case ExperimentPriority.high:
         return AppTheme.warningAmber;
       case ExperimentPriority.urgent:

@@ -4,7 +4,7 @@ import '../models/experiment_result.dart';
 import '../models/career_insight.dart';
 import '../models/career_synthesis.dart';
 import '../models/five_insights_model.dart';
-import '../models/advisor_response.dart';
+// import '../models/advisor_response.dart';
 import '../models/career_response.dart';
 import '../utils/logger.dart';
 import 'career_ai_service.dart';
@@ -163,7 +163,7 @@ class ExperimentService {
     }
 
     try {
-      final prompt = _buildExperimentSuggestionPrompt(careerGoal, userResponses);
+      // final prompt = _buildExperimentSuggestionPrompt(careerGoal, userResponses);
       final suggestions = await _aiService.generateCareerPathSuggestions(
         responses: userResponses,
         sessionId: sessionId,
@@ -256,11 +256,11 @@ class ExperimentService {
       final outcome = _determineExperimentOutcome(successScore, keyLearnings.length);
 
       // Generate future experiment ideas based on results
-      final futureIdeas = await _generateFutureExperimentIdeas(
-        experiment: completedExperiment,
-        successScore: successScore,
-        keyLearnings: keyLearnings,
-      );
+    final futureIdeas = await _generateFutureExperimentIdeas(
+      completedExperiment,
+      successScore,
+      keyLearnings,
+    );
 
       // Create experiment result
       final result = ExperimentResult.create(

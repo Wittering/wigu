@@ -319,8 +319,9 @@ class AdvisorNotifier extends StateNotifier<AsyncValue<void>> {
       await _advisorService.initialise();
       await _advisorService.cleanupExpiredInvitations();
       
-      // Invalidate all invitation-related data
-      _ref.invalidateAll();
+      // Invalidate advisor-related providers
+      _ref.invalidate(advisorInvitationsProvider);
+      _ref.invalidate(advisorResponsesProvider);
       
       AppLogger.info('Cleaned up expired invitations');
     } catch (e, stackTrace) {

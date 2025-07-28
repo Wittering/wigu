@@ -1,5 +1,7 @@
 import 'dart:convert';
 import '../models/career_session.dart';
+import '../models/career_response.dart';
+import '../models/career_insight.dart';
 import '../models/advisor_invitation.dart';
 import '../models/advisor_response.dart';
 import '../models/career_synthesis.dart';

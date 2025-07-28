@@ -17,7 +17,8 @@ class ErrorRecoveryService {
   final Map<String, RetryContext> _retryContexts = {};
   final Map<String, CircuitBreaker> _circuitBreakers = {};
   final StreamController<ErrorEvent> _errorEventController = StreamController<ErrorEvent>.broadcast();
-  final Connectivity _connectivity = Connectivity();
+  // Connectivity removed for local-only operation
+  // final Connectivity _connectivity = Connectivity();
   
   /// Execute operation with comprehensive error handling and retry logic
   Future<T> executeWithRetry<T>(
@@ -369,8 +370,9 @@ class ErrorRecoveryService {
     // Check network connectivity for network-related errors
     if (error is SocketException || error is TimeoutException) {
       try {
-        final connectivityResult = await _connectivity.checkConnectivity();
-        if (connectivityResult == ConnectivityResult.none) {
+        // Network connectivity check removed for local-only operation
+        // For local-only app, assume always "connected"
+        if (false) { // Never treat as offline
           AppLogger.info('No network connectivity - aborting retry');
           return false;
         }

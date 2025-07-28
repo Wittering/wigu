@@ -24,16 +24,17 @@ class DomainOverviewCard extends StatelessWidget {
     final domainColour = AppTheme.getCareerDomainColour(domain.name);
     
     return SizedBox(
-      width: 160,
+      width: 100, // Further reduced to 100px
+      height: 100, // Add explicit height constraint
       child: Card(
-        elevation: 2,
+        elevation: 1, // Reduced elevation for more subtle look
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8), // Slightly smaller radius
           child: Container(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(8.0), // Further reduced padding to 8
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8), // Match the InkWell radius
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -54,13 +55,13 @@ class DomainOverviewCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildHeader(context, domainColour),
-                const SizedBox(height: 8),
+                const SizedBox(height: 3), // Further reduced spacing
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildTitle(context),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 1), // Further reduced spacing
                       Flexible(child: _buildDescription(context)),
                       const Spacer(),
                       _buildProgressIndicator(context, domainColour),
@@ -81,15 +82,15 @@ class DomainOverviewCard extends StatelessWidget {
       children: [
         // Domain icon
         Container(
-          width: 32,
-          height: 32,
+          width: 20, // Further reduced to 20
+          height: 20, // Further reduced to 20
           decoration: BoxDecoration(
             color: domainColour.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(4), // Smaller radius
           ),
           child: Icon(
             _getDomainIcon(domain),
-            size: 18,
+            size: 12, // Further reduced to 12
             color: domainColour,
           ),
         )
@@ -139,6 +140,7 @@ class DomainOverviewCard extends StatelessWidget {
       style: Theme.of(context).textTheme.titleSmall?.copyWith(
         color: AppTheme.primaryText,
         fontWeight: FontWeight.w600,
+        fontSize: 10, // Further reduced for very compact cards
       ),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
@@ -150,7 +152,7 @@ class DomainOverviewCard extends StatelessWidget {
       domain.description,
       style: Theme.of(context).textTheme.bodySmall?.copyWith(
         color: AppTheme.mutedText,
-        fontSize: 10,
+        fontSize: 8, // Further reduced for very compact cards
       ),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
@@ -165,7 +167,7 @@ class DomainOverviewCard extends StatelessWidget {
           size: 12,
           color: AppTheme.mutedText,
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 3), // Reduced spacing
         Text(
           '$responseCount',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -174,7 +176,7 @@ class DomainOverviewCard extends StatelessWidget {
             fontSize: 11,
           ),
         ),
-        const SizedBox(width: 2),
+        const SizedBox(width: 1), // Reduced spacing
         Text(
           responseCount == 1 ? 'response' : 'responses',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(

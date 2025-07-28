@@ -134,7 +134,7 @@ class _DomainOverviewCardState extends State<DomainOverviewCard>
                       children: [
                         // Main content
                         Padding(
-                          padding: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.all(12), // Reduced from 20 to 12
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -142,11 +142,11 @@ class _DomainOverviewCardState extends State<DomainOverviewCard>
                               Row(
                                 children: [
                                   Container(
-                                    width: 48,
-                                    height: 48,
+                                    width: 32, // Reduced from 48 to 32
+                                    height: 32, // Reduced from 48 to 32
                                     decoration: BoxDecoration(
                                       color: widget.color.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(8), // Reduced radius
                                       border: Border.all(
                                         color: widget.color.withOpacity(0.3),
                                       ),
@@ -154,7 +154,7 @@ class _DomainOverviewCardState extends State<DomainOverviewCard>
                                     child: Center(
                                       child: Text(
                                         widget.icon,
-                                        style: const TextStyle(fontSize: 24),
+                                        style: const TextStyle(fontSize: 16), // Reduced from 24 to 16
                                       ),
                                     ),
                                   ),
@@ -162,19 +162,19 @@ class _DomainOverviewCardState extends State<DomainOverviewCard>
                                   _buildStatusIndicator(),
                                 ],
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 8), // Reduced from 16 to 8
                               
                               // Title
                               Text(
                                 widget.title,
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 20,
+                                  fontSize: 16, // Reduced from 20 to 16
                                   fontWeight: FontWeight.bold,
                                   height: 1.2,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 4), // Reduced from 8 to 4
                               
                               // Description
                               Expanded(
@@ -182,12 +182,14 @@ class _DomainOverviewCardState extends State<DomainOverviewCard>
                                   widget.description,
                                   style: TextStyle(
                                     color: Colors.white.withOpacity(0.7),
-                                    fontSize: 14,
-                                    height: 1.4,
+                                    fontSize: 12, // Reduced from 14 to 12
+                                    height: 1.3, // Reduced line height
                                   ),
+                                  maxLines: 2, // Limit to 2 lines
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 8), // Reduced from 16 to 8
                               
                               // Action button
                               _buildActionButton(),
@@ -341,7 +343,7 @@ class _DomainOverviewCardState extends State<DomainOverviewCard>
               style: OutlinedButton.styleFrom(
                 foregroundColor: CareerTheme.statusSuccess,
                 side: const BorderSide(color: CareerTheme.statusSuccess),
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 6), // Reduced from 8 to 6
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -380,7 +382,7 @@ class _DomainOverviewCardState extends State<DomainOverviewCard>
         style: ElevatedButton.styleFrom(
           backgroundColor: widget.color,
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 8), // Reduced from 12 to 8
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),

@@ -781,14 +781,42 @@ class InsightCategorizer {
   
   Future<List<HiddenStrength>> _findAdditionalHiddenStrengths(List<CareerResponse> self, List<AdvisorResponse> advisor) async => [];
   
-  // Creation methods would be implemented to create the actual model objects
+  // Creation methods to create the actual model objects
   Future<EnergisrengStrength?> _createEnergisingStrength({
     required String strengthName,
     required Map<String, dynamic> selfData,
     required Map<String, dynamic> advisorData,
     required List<CareerResponse> selfResponses,
     required List<AdvisorResponse> advisorResponses,
-  }) async => null;
+  }) async {
+    try {
+      final skillLevel = (selfData['avg_skill'] ?? 0.0).round().clamp(1, 5);
+      final energyLevel = (selfData['avg_energy'] ?? 0.0).round().clamp(1, 5);
+      final recognitionLevel = (advisorData['weighted_recognition'] ?? 0.0).round().clamp(1, 5);
+      
+      // Calculate leverageability based on application contexts
+      final applicationAreas = _identifyApplicationAreas(strengthName, selfResponses, advisorResponses);
+      final leverageability = _calculateLeverageability(skillLevel, energyLevel, recognitionLevel, applicationAreas.length);
+      
+      return EnergisrengStrength(
+        id: 'energising_${strengthName.replaceAll(' ', '_').toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}',
+        title: _formatStrengthTitle(strengthName),
+        description: 'This represents a core area where your high skill level, natural energy, and external recognition align perfectly. It\'s a sweet spot for sustainable high performance.',
+        skillLevel: skillLevel,
+        energyLevel: energyLevel,
+        recognitionLevel: recognitionLevel,
+        leverageability: leverageability,
+        evidenceFromSelf: (selfData['evidence'] as List<String>? ?? []).take(3).toList(),
+        evidenceFromOthers: (advisorData['evidence'] as List<String>? ?? []).take(3).toList(),
+        actionableAdvice: _generateEnergisingStrengthAdvice(strengthName, leverageability),
+        applicationAreas: applicationAreas,
+        confidence: _calculateEnergisingConfidence(selfData, advisorData),
+      );
+    } catch (e) {
+      AppLogger.error('Error creating energising strength: $strengthName', e);
+      return null;
+    }
+  }
   
   Future<HiddenStrength?> _createHiddenStrength({
     required String strengthName,
@@ -796,7 +824,32 @@ class InsightCategorizer {
     required Map<String, dynamic> advisorData,
     required List<CareerResponse> selfResponses,
     required List<AdvisorResponse> advisorResponses,
-  }) async => null;
+  }) async {
+    try {
+      final competenceLevel = (advisorData['weighted_competence'] ?? 0.0).round().clamp(1, 5);
+      final currentRecognition = (selfData?['avg_confidence'] ?? 1.0).round().clamp(1, 5);
+      final potentialImpact = _calculatePotentialImpact(competenceLevel, advisorData);
+      
+      final hiddenFactors = _identifyHiddenFactors(strengthName, selfData, advisorData);
+      final visibilityOpportunities = _identifyVisibilityOpportunities(strengthName, advisorResponses);
+      
+      return HiddenStrength(
+        id: 'hidden_${strengthName.replaceAll(' ', '_').toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}',
+        title: _formatStrengthTitle(strengthName),
+        description: 'This capability is more visible to others than to yourself, representing significant untapped potential for career advancement.',
+        competenceLevel: competenceLevel,
+        currentRecognition: currentRecognition,
+        potentialImpact: potentialImpact,
+        hiddenFactors: hiddenFactors,
+        developmentStrategy: _generateHiddenStrengthStrategy(strengthName, potentialImpact),
+        visibilityOpportunities: visibilityOpportunities,
+        confidence: _calculateHiddenStrengthConfidence(advisorData),
+      );
+    } catch (e) {
+      AppLogger.error('Error creating hidden strength: $strengthName', e);
+      return null;
+    }
+  }
   
   Future<OverusedTalent?> _createOverusedTalent({
     required String talentName,
@@ -804,7 +857,32 @@ class InsightCategorizer {
     Map<String, dynamic>? advisorData,
     required List<CareerResponse> selfResponses,
     required List<AdvisorResponse> advisorResponses,
-  }) async => null;
+  }) async {
+    try {
+      final talentLevel = (energyData['avg_skill'] ?? 0.0).round().clamp(1, 5);
+      final usageFrequency = (energyData['usage_frequency'] ?? 0.0).round().clamp(1, 5);
+      final burnoutRisk = (energyData['drain_level'] ?? 0.0).round().clamp(1, 5);
+      
+      final overuseIndicators = _identifyOveruseIndicators(talentName, energyData);
+      final alternativeApplications = _identifyAlternativeApplications(talentName);
+      
+      return OverusedTalent(
+        id: 'overused_${talentName.replaceAll(' ', '_').toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}',
+        title: _formatStrengthTitle(talentName),
+        description: 'While this is clearly a strength, there are signs it may be overused, potentially leading to diminishing returns and energy drain.',
+        talentLevel: talentLevel,
+        usageFrequency: usageFrequency,
+        burnoutRisk: burnoutRisk,
+        overuseIndicators: overuseIndicators,
+        rebalancingStrategy: _generateRebalancingStrategy(talentName, usageFrequency, burnoutRisk),
+        alternativeApplications: alternativeApplications,
+        confidence: _calculateOverusedTalentConfidence(energyData, advisorData),
+      );
+    } catch (e) {
+      AppLogger.error('Error creating overused talent: $talentName', e);
+      return null;
+    }
+  }
   
   Future<AspirationalStrength?> _createAspirationalStrength({
     required String areaName,
@@ -812,7 +890,32 @@ class InsightCategorizer {
     Map<String, dynamic>? advisorData,
     required List<CareerResponse> selfResponses,
     required List<AdvisorResponse> advisorResponses,
-  }) async => null;
+  }) async {
+    try {
+      final currentLevel = (aspirationData['current_level'] ?? 0.0).round().clamp(1, 5);
+      final interestLevel = (aspirationData['interest_level'] ?? 0.0).round().clamp(1, 5);
+      final developmentPotential = _calculateDevelopmentPotential(interestLevel, advisorData);
+      
+      final requiredResources = _identifyRequiredResources(areaName);
+      final timeframe = _estimateTimeframe(currentLevel, interestLevel, developmentPotential);
+      
+      return AspirationalStrength(
+        id: 'aspirational_${areaName.replaceAll(' ', '_').toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}',
+        title: _formatStrengthTitle(areaName),
+        description: 'This area represents high personal interest and potential for development, making it a strategic investment opportunity.',
+        currentLevel: currentLevel,
+        interestLevel: interestLevel,
+        developmentPotential: developmentPotential,
+        developmentPlan: _generateDevelopmentPlan(areaName, currentLevel, developmentPotential),
+        requiredResources: requiredResources,
+        timeframe: timeframe,
+        confidence: _calculateAspirationalConfidence(aspirationData, advisorData),
+      );
+    } catch (e) {
+      AppLogger.error('Error creating aspirational strength: $areaName', e);
+      return null;
+    }
+  }
   
   Future<MisalignedEnergy?> _createMisalignedEnergy({
     required String activityName,
@@ -820,5 +923,278 @@ class InsightCategorizer {
     Map<String, dynamic>? competenceData,
     required List<CareerResponse> selfResponses,
     required List<AdvisorResponse> advisorResponses,
-  }) async => null;
+  }) async {
+    try {
+      final competenceLevel = (drainData['avg_skill'] ?? 0.0).round().clamp(1, 5);
+      final energyDrainLevel = (drainData['drain_level'] ?? 0.0).round().clamp(1, 5);
+      final frequency = (drainData['frequency'] ?? 0.0).round().clamp(1, 5);
+      
+      final drainFactors = _identifyDrainFactors(activityName, drainData);
+      final alternativeApproaches = _identifyAlternativeApproaches(activityName);
+      
+      return MisalignedEnergy(
+        id: 'misaligned_${activityName.replaceAll(' ', '_').toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}',
+        title: _formatStrengthTitle(activityName),
+        description: 'This activity drains your energy despite demonstrated competence, indicating a misalignment between capability and personal satisfaction.',
+        competenceLevel: competenceLevel,
+        energyDrainLevel: energyDrainLevel,
+        frequency: frequency,
+        drainFactors: drainFactors,
+        mitigationStrategy: _generateMitigationStrategy(activityName, energyDrainLevel, frequency),
+        alternativeApproaches: alternativeApproaches,
+        confidence: _calculateMisalignedEnergyConfidence(drainData),
+      );
+    } catch (e) {
+      AppLogger.error('Error creating misaligned energy: $activityName', e);
+      return null;
+    }
+  }
+  
+  // ===== HELPER METHODS FOR OBJECT CREATION =====
+  
+  String _formatStrengthTitle(String strengthName) {
+    return strengthName.split('_').map((word) => 
+        word[0].toUpperCase() + word.substring(1)).join(' ');
+  }
+  
+  List<String> _identifyApplicationAreas(String strengthName, List<CareerResponse> selfResponses, List<AdvisorResponse> advisorResponses) {
+    final areas = <String>[];
+    
+    // Extract application contexts from responses
+    final allResponses = [
+      ...selfResponses.map((r) => r.response),
+      ...advisorResponses.map((r) => r.response),
+    ];
+    
+    final contexts = ['leadership', 'technical', 'strategic', 'creative', 'analytical', 'interpersonal'];
+    for (final context in contexts) {
+      if (allResponses.any((response) => response.toLowerCase().contains(context))) {
+        areas.add(context);
+      }
+    }
+    
+    return areas.isEmpty ? ['general_application'] : areas;
+  }
+  
+  int _calculateLeverageability(int skillLevel, int energyLevel, int recognitionLevel, int applicationCount) {
+    final averageScore = (skillLevel + energyLevel + recognitionLevel) / 3.0;
+    final applicationBonus = min(1, applicationCount / 3.0);
+    return (averageScore + applicationBonus).round().clamp(1, 5);
+  }
+  
+  String? _generateEnergisingStrengthAdvice(String strengthName, int leverageability) {
+    if (leverageability >= 4) {
+      return 'Seek high-impact projects and leadership opportunities that maximize your ${strengthName.toLowerCase()} capabilities.';
+    } else {
+      return 'Look for ways to apply your ${strengthName.toLowerCase()} in new contexts to increase your impact and visibility.';
+    }
+  }
+  
+  double _calculateEnergisingConfidence(Map<String, dynamic> selfData, Map<String, dynamic> advisorData) {
+    final selfConfidence = selfData['avg_confidence'] ?? 0.0;
+    final advisorCredibility = advisorData['total_credibility'] ?? 0.0;
+    return ((selfConfidence / 5.0) * 0.4 + (advisorCredibility / 5.0) * 0.6).clamp(0.0, 1.0);
+  }
+  
+  int _calculatePotentialImpact(int competenceLevel, Map<String, dynamic> advisorData) {
+    final baseImpact = competenceLevel;
+    final credibilityBonus = ((advisorData['total_credibility'] ?? 0.0) >= 3.0) ? 1 : 0;
+    return (baseImpact + credibilityBonus).clamp(1, 5);
+  }
+  
+  List<String> _identifyHiddenFactors(String strengthName, Map<String, dynamic>? selfData, Map<String, dynamic> advisorData) {
+    final factors = <String>[];
+    
+    if (selfData == null || (selfData['frequency'] ?? 0) == 0) {
+      factors.add('Not mentioned in self-assessment');
+    }
+    
+    if ((selfData?['avg_confidence'] ?? 0.0) < 3.0) {
+      factors.add('Low self-confidence in this area');
+    }
+    
+    if ((advisorData['frequency'] ?? 0) >= 3) {
+      factors.add('Consistently mentioned by multiple advisors');
+    }
+    
+    return factors.isEmpty ? ['Unrecognized capability'] : factors;
+  }
+  
+  List<String> _identifyVisibilityOpportunities(String strengthName, List<AdvisorResponse> advisorResponses) {
+    return [
+      'Showcase ${strengthName.toLowerCase()} through presentations or leading projects',
+      'Seek feedback specifically about ${strengthName.toLowerCase()} capabilities',
+      'Volunteer for assignments that highlight ${strengthName.toLowerCase()} skills',
+    ];
+  }
+  
+  String? _generateHiddenStrengthStrategy(String strengthName, int potentialImpact) {
+    if (potentialImpact >= 4) {
+      return 'Prioritize increasing visibility of your ${strengthName.toLowerCase()} through strategic projects and communication.';
+    } else {
+      return 'Explore ways to develop and demonstrate your ${strengthName.toLowerCase()} capabilities.';
+    }
+  }
+  
+  double _calculateHiddenStrengthConfidence(Map<String, dynamic> advisorData) {
+    final credibility = advisorData['total_credibility'] ?? 0.0;
+    final frequency = advisorData['frequency'] ?? 0;
+    return ((credibility / 5.0) * 0.7 + min(1.0, frequency / 3.0) * 0.3).clamp(0.0, 1.0);
+  }
+  
+  List<String> _identifyDrainFactors(String activityName, Map<String, dynamic> drainData) {
+    final factors = <String>[];
+    
+    if ((drainData['drain_level'] ?? 0.0) >= 4.0) {
+      factors.add('High energy drain reported');
+    }
+    
+    if ((drainData['usage_frequency'] ?? 0.0) >= 4.0) {
+      factors.add('Frequently required activity');
+    }
+    
+    factors.add('Competence without enjoyment');
+    
+    return factors;
+  }
+  
+  List<String> _identifyAlternativeApproaches(String activityName) {
+    return [
+      'Delegate ${activityName.toLowerCase()} where possible',
+      'Restructure ${activityName.toLowerCase()} to be more engaging',
+      'Limit time spent on ${activityName.toLowerCase()}',
+      'Find ways to automate ${activityName.toLowerCase()} tasks',
+    ];
+  }
+  
+  String? _generateMitigationStrategy(String activityName, int energyDrainLevel, int frequency) {
+    if (energyDrainLevel >= 4 && frequency >= 4) {
+      return 'Urgently address ${activityName.toLowerCase()} through delegation, automation, or role restructuring.';
+    } else if (energyDrainLevel >= 3) {
+      return 'Gradually reduce involvement in ${activityName.toLowerCase()} or find ways to make it more energizing.';
+    } else {
+      return 'Monitor ${activityName.toLowerCase()} to prevent it from becoming more draining over time.';
+    }
+  }
+  
+  double _calculateMisalignedEnergyConfidence(Map<String, dynamic> drainData) {
+    final evidenceCount = (drainData['evidence'] as List?)?.length ?? 0;
+    final drainLevel = drainData['drain_level'] ?? 0.0;
+    return ((drainLevel / 5.0) * 0.6 + min(1.0, evidenceCount / 3.0) * 0.4).clamp(0.0, 1.0);
+  }
+  
+  // Additional helper methods for Overused Talent and Aspirational Strength
+  
+  List<String> _identifyOveruseIndicators(String talentName, Map<String, dynamic> energyData) {
+    final indicators = <String>[];
+    
+    if ((energyData['drain_level'] ?? 0.0) >= 4.0) {
+      indicators.add('High energy drain despite competence');
+    }
+    
+    if ((energyData['usage_frequency'] ?? 0.0) >= 4.0) {
+      indicators.add('Very frequent use of this talent');
+    }
+    
+    final evidence = energyData['evidence'] as List<String>? ?? [];
+    for (final item in evidence) {
+      if (item.toLowerCase().contains('too much') || item.toLowerCase().contains('overused')) {
+        indicators.add('Explicit mention of overuse');
+        break;
+      }
+    }
+    
+    return indicators.isEmpty ? ['Potential for overuse'] : indicators;
+  }
+  
+  List<String> _identifyAlternativeApplications(String talentName) {
+    return [
+      'Apply ${talentName.toLowerCase()} in mentoring others',
+      'Use ${talentName.toLowerCase()} in strategic rather than operational contexts',
+      'Channel ${talentName.toLowerCase()} into innovation projects',
+      'Leverage ${talentName.toLowerCase()} for teaching and knowledge sharing',
+    ];
+  }
+  
+  String? _generateRebalancingStrategy(String talentName, int usageFrequency, int burnoutRisk) {
+    if (burnoutRisk >= 4) {
+      return 'Implement immediate boundaries around ${talentName.toLowerCase()} usage. Delegate tasks and restructure role to reduce frequency.';
+    } else if (usageFrequency >= 4) {
+      return 'Gradually reduce direct application of ${talentName.toLowerCase()} while maintaining strategic oversight.';
+    } else {
+      return 'Monitor ${talentName.toLowerCase()} usage to maintain balance and prevent future overuse.';
+    }
+  }
+  
+  double _calculateOverusedTalentConfidence(Map<String, dynamic> energyData, Map<String, dynamic>? advisorData) {
+    final selfEvidence = (energyData['evidence'] as List?)?.length ?? 0;
+    final drainLevel = energyData['drain_level'] ?? 0.0;
+    final advisorConfirmation = (advisorData != null && (advisorData['burnout_concern'] ?? 0.0) >= 2.0) ? 0.3 : 0.0;
+    
+    return ((drainLevel / 5.0) * 0.5 + min(1.0, selfEvidence / 3.0) * 0.2 + advisorConfirmation).clamp(0.0, 1.0);
+  }
+  
+  int _calculateDevelopmentPotential(int interestLevel, Map<String, dynamic>? advisorData) {
+    int potential = max(1, interestLevel - 1); // Base on interest, but cap at 4 initially
+    
+    if (advisorData != null) {
+      final advisorPotential = (advisorData['development_potential'] ?? 0.0).round();
+      if (advisorPotential >= 3) {
+        potential = min(5, potential + 1); // Boost if advisor sees potential
+      }
+    }
+    
+    return potential.clamp(1, 5);
+  }
+  
+  List<String> _identifyRequiredResources(String areaName) {
+    final resourceMap = {
+      'leadership': ['Leadership training', 'Mentoring relationship', 'Leadership opportunities'],
+      'technical': ['Technical courses', 'Hands-on projects', 'Expert guidance'],
+      'communication': ['Presentation skills training', 'Writing workshops', 'Speaking opportunities'],
+      'strategic': ['Strategic thinking frameworks', 'Business education', 'Cross-functional exposure'],
+      'creative': ['Creative workshops', 'Design thinking training', 'Innovation projects'],
+    };
+    
+    for (final entry in resourceMap.entries) {
+      if (areaName.toLowerCase().contains(entry.key)) {
+        return entry.value;
+      }
+    }
+    
+    return ['Structured learning program', 'Practice opportunities', 'Expert feedback'];
+  }
+  
+  int _estimateTimeframe(int currentLevel, int interestLevel, int developmentPotential) {
+    final complexity = 5 - currentLevel; // Higher current level = less time needed
+    final motivation = interestLevel; // Higher interest = faster development
+    final potential = developmentPotential; // Higher potential = more efficient learning
+    
+    final baseMonths = 6; // Base timeframe
+    final complexityAdjustment = complexity * 2; // 2 months per complexity point
+    final motivationAdjustment = (5 - motivation) * 1; // Reduce time for higher motivation
+    final potentialAdjustment = (5 - potential) * 1; // Reduce time for higher potential
+    
+    final totalMonths = baseMonths + complexityAdjustment - motivationAdjustment - potentialAdjustment;
+    
+    return totalMonths.clamp(3, 24); // Between 3 months and 2 years
+  }
+  
+  String? _generateDevelopmentPlan(String areaName, int currentLevel, int developmentPotential) {
+    if (developmentPotential >= 4) {
+      return 'Create an intensive development plan for ${areaName.toLowerCase()} with specific milestones, learning resources, and practice opportunities.';
+    } else if (developmentPotential >= 3) {
+      return 'Develop ${areaName.toLowerCase()} through structured learning and gradual skill building over time.';
+    } else {
+      return 'Explore ${areaName.toLowerCase()} through small experiments and learning opportunities to test interest and aptitude.';
+    }
+  }
+  
+  double _calculateAspirationalConfidence(Map<String, dynamic> aspirationData, Map<String, dynamic>? advisorData) {
+    final interestLevel = aspirationData['interest_level'] ?? 0.0;
+    final evidenceCount = (aspirationData['evidence'] as List?)?.length ?? 0;
+    final advisorSupport = (advisorData != null && (advisorData['development_potential'] ?? 0.0) >= 2.0) ? 0.2 : 0.0;
+    
+    return ((interestLevel / 5.0) * 0.6 + min(1.0, evidenceCount / 3.0) * 0.2 + advisorSupport).clamp(0.0, 1.0);
+  }
 }

@@ -145,50 +145,29 @@ class SessionCard extends StatelessWidget {
   }
 
   Widget _buildProgressSection(BuildContext context) {
-    final completionPercentage = session.completionPercentage;
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Exploration Progress',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.secondaryText,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            Text(
-              '${(completionPercentage * 100).toInt()}%',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.accentTeal,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+        Icon(
+          Icons.explore_outlined,
+          size: 16,
+          color: AppTheme.accentTeal,
         ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: completionPercentage,
-            backgroundColor: AppTheme.mutedTone2.withOpacity(0.3),
-            valueColor: AlwaysStoppedAnimation<Color>(AppTheme.accentTeal),
-            minHeight: 6,
+        const SizedBox(width: 6),
+        Text(
+          'Career Exploration',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: AppTheme.secondaryText,
+            fontWeight: FontWeight.w500,
           ),
-        )
-            .animate()
-            .slideX(begin: -1.0, duration: 800.ms, curve: Curves.easeOut)
-            .then()
-            .shimmer(
-              duration: 1500.ms,
-              colors: [
-                AppTheme.accentTeal,
-                AppTheme.accentTeal.withOpacity(0.3),
-              ],
-            ),
+        ),
+        const Spacer(),
+        Text(
+          'Active',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: AppTheme.accentTeal,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ],
     );
   }

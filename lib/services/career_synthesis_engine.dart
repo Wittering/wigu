@@ -521,32 +521,409 @@ class CareerSynthesisEngine {
     );
   }
 
-  // Placeholder implementations for missing methods - these would be fully implemented
-  Future<List<SynthesisInsight>> _identifyAlignmentAreas(List<CareerResponse> self, List<AdvisorResponse> advisor) async => [];
-  Future<List<SynthesisInsight>> _identifyHiddenStrengths(List<CareerResponse> self, List<AdvisorResponse> advisor) async => [];
-  Future<List<SynthesisInsight>> _identifyOverestimatedAreas(List<CareerResponse> self, List<AdvisorResponse> advisor) async => [];
-  Future<List<SynthesisInsight>> _identifyDevelopmentOpportunities(List<CareerResponse> self, List<AdvisorResponse> advisor) async => [];
-  Future<List<SynthesisInsight>> _identifyRepositioningPotential(List<CareerResponse> self, List<AdvisorResponse> advisor) async => [];
+  /// Identify areas where self and advisor perceptions align strongly
+  Future<List<SynthesisInsight>> _identifyAlignmentAreas(
+    List<CareerResponse> selfResponses, 
+    List<AdvisorResponse> advisorResponses
+  ) async {
+    AppLogger.debug('Identifying alignment areas between self and advisor perspectives');
+    
+    final alignmentInsights = <SynthesisInsight>[];
+    final selfThemes = _extractThemesFromResponses(selfResponses);
+    final advisorThemes = _extractThemesFromAdvisorResponses(advisorResponses);
+    
+    // Find common themes with strong evidence from both sides
+    final commonThemes = _findCommonThemes(selfThemes, advisorThemes);
+    
+    for (final theme in commonThemes.take(5)) {
+      final selfEvidence = _findEvidenceForTheme(theme, selfResponses, []);
+      final advisorEvidence = _findEvidenceForTheme(theme, [], advisorResponses);
+      
+      if (selfEvidence.length >= 2 && advisorEvidence.length >= 2) {
+        final insight = SynthesisInsight(
+          id: 'alignment_${DateTime.now().millisecondsSinceEpoch}',
+          title: 'Confirmed Strength: ${_formatThemeTitle(theme)}',
+          description: 'Both your self-assessment and advisor feedback consistently highlight your capability in $theme. This represents a reliable strength for career positioning.',
+          category: SynthesisCategory.strength,
+          supportingEvidence: [...selfEvidence.take(2), ...advisorEvidence.take(2)],
+          strategicImportance: _calculateStrategicImportance(theme, selfEvidence.length + advisorEvidence.length),
+          actionableAdvice: 'Leverage this confirmed strength by seeking opportunities that require $theme capabilities and highlighting it in professional communications.',
+          relatedThemes: [theme],
+          confidence: _calculateAlignmentConfidence(selfEvidence, advisorEvidence),
+        );
+        
+        alignmentInsights.add(insight);
+      }
+    }
+    
+    return alignmentInsights;
+  }
   
-  Future<String> _generateExecutiveSummary(
-    {required List<CareerResponse> selfResponses,
+  /// Identify strengths that advisors see but the person doesn't fully recognize
+  Future<List<SynthesisInsight>> _identifyHiddenStrengths(
+    List<CareerResponse> selfResponses, 
+    List<AdvisorResponse> advisorResponses
+  ) async {
+    AppLogger.debug('Identifying hidden strengths from advisor perspectives');
+    
+    final hiddenInsights = <SynthesisInsight>[];
+    final selfThemes = _extractThemesFromResponses(selfResponses);
+    final advisorThemes = _extractThemesFromAdvisorResponses(advisorResponses);
+    
+    // Find themes strongly mentioned by advisors but weakly/not mentioned by self
+    final advisorThemeCount = _countThemeFrequency(advisorThemes);
+    final selfThemeCount = _countThemeFrequency(selfThemes);
+    
+    for (final advisorTheme in advisorThemeCount.entries) {
+      final theme = advisorTheme.key;
+      final advisorFrequency = advisorTheme.value;
+      final selfFrequency = selfThemeCount[theme] ?? 0;
+      
+      // Hidden strength criteria: high advisor mention, low self mention
+      if (advisorFrequency >= 3 && selfFrequency <= 1) {
+        final advisorEvidence = _findEvidenceForTheme(theme, [], advisorResponses);
+        final credibilityScore = _calculateEvidenceCredibility(advisorEvidence, advisorResponses);
+        
+        if (credibilityScore >= 0.6) {
+          final insight = SynthesisInsight(
+            id: 'hidden_${DateTime.now().millisecondsSinceEpoch}',
+            title: 'Hidden Strength: ${_formatThemeTitle(theme)}',
+            description: 'Your advisors consistently recognize your capability in $theme, though you may not fully appreciate this strength yourself. This represents significant untapped potential.',
+            category: SynthesisCategory.blindspot,
+            supportingEvidence: advisorEvidence.take(3).toList(),
+            strategicImportance: _calculateHiddenStrengthImportance(advisorFrequency, credibilityScore),
+            actionableAdvice: 'Explore this strength through feedback conversations and look for opportunities to develop and showcase $theme capabilities.',
+            relatedThemes: [theme],
+            confidence: credibilityScore,
+          );
+          
+          hiddenInsights.add(insight);
+        }
+      }
+    }
+    
+    return hiddenInsights.take(4).toList();
+  }
+  
+  /// Identify areas where self-perception may exceed external recognition
+  Future<List<SynthesisInsight>> _identifyOverestimatedAreas(
+    List<CareerResponse> selfResponses, 
+    List<AdvisorResponse> advisorResponses
+  ) async {
+    AppLogger.debug('Identifying potentially overestimated areas');
+    
+    final overestimationInsights = <SynthesisInsight>[];
+    final selfThemes = _extractThemesFromResponses(selfResponses);
+    final advisorThemes = _extractThemesFromAdvisorResponses(advisorResponses);
+    
+    final selfThemeCount = _countThemeFrequency(selfThemes);
+    final advisorThemeCount = _countThemeFrequency(advisorThemes);
+    
+    for (final selfTheme in selfThemeCount.entries) {
+      final theme = selfTheme.key;
+      final selfFrequency = selfTheme.value;
+      final advisorFrequency = advisorThemeCount[theme] ?? 0;
+      
+      // Overestimation criteria: high self mention, low advisor mention
+      if (selfFrequency >= 3 && advisorFrequency <= 1) {
+        final selfEvidence = _findEvidenceForTheme(theme, selfResponses, []);
+        final confidenceLevel = _calculateSelfConfidenceLevel(selfEvidence, selfResponses);
+        
+        // Only flag as overestimation if self-confidence is high
+        if (confidenceLevel >= 0.7) {
+          final insight = SynthesisInsight(
+            id: 'overestimated_${DateTime.now().millisecondsSinceEpoch}',
+            title: 'Validation Opportunity: ${_formatThemeTitle(theme)}',
+            description: 'You frequently mention $theme as a strength, but it appears less prominently in advisor feedback. This may indicate an opportunity to gather more external validation or better demonstrate this capability.',
+            category: SynthesisCategory.overestimation,
+            supportingEvidence: selfEvidence.take(2).toList(),
+            strategicImportance: 3, // Medium importance for calibration
+            actionableAdvice: 'Seek specific feedback about your $theme capabilities and look for opportunities to demonstrate this strength more visibly.',
+            relatedThemes: [theme],
+            confidence: 0.6, // Lower confidence as this requires careful interpretation
+          );
+          
+          overestimationInsights.add(insight);
+        }
+      }
+    }
+    
+    return overestimationInsights.take(3).toList();
+  }
+  
+  /// Identify development opportunities based on gaps and advisor suggestions
+  Future<List<SynthesisInsight>> _identifyDevelopmentOpportunities(
+    List<CareerResponse> selfResponses, 
+    List<AdvisorResponse> advisorResponses
+  ) async {
+    AppLogger.debug('Identifying development opportunities');
+    
+    final developmentInsights = <SynthesisInsight>[];
+    
+    // Look for development themes in advisor responses
+    final developmentKeywords = ['develop', 'improve', 'grow', 'learn', 'build', 'strengthen', 'expand'];
+    
+    for (final response in advisorResponses) {
+      final content = response.response.toLowerCase();
+      final hasDevSuggestion = developmentKeywords.any((keyword) => content.contains(keyword));
+      
+      if (hasDevSuggestion && response.responseQualityScore >= 0.6) {
+        // Extract potential development areas
+        final themes = response.keyThemes;
+        for (final theme in themes) {
+          final insight = SynthesisInsight(
+            id: 'development_${DateTime.now().millisecondsSinceEpoch}',
+            title: 'Development Opportunity: ${_formatThemeTitle(theme)}',
+            description: 'Advisor feedback suggests growth potential in $theme. This represents a strategic development opportunity aligned with external perceptions of your potential.',
+            category: SynthesisCategory.development,
+            supportingEvidence: [response.response],
+            strategicImportance: _calculateDevelopmentImportance(response),
+            actionableAdvice: 'Create a specific development plan for $theme, including learning resources, practice opportunities, and progress measures.',
+            relatedThemes: [theme],
+            confidence: response.credibilityWeight,
+          );
+          
+          developmentInsights.add(insight);
+        }
+      }
+    }
+    
+    // Remove duplicates and prioritize
+    final uniqueInsights = _removeDuplicateInsights(developmentInsights);
+    uniqueInsights.sort((a, b) => b.strategicImportance.compareTo(a.strategicImportance));
+    
+    return uniqueInsights.take(5).toList();
+  }
+  
+  /// Identify opportunities for better positioning and communication of strengths
+  Future<List<SynthesisInsight>> _identifyRepositioningPotential(
+    List<CareerResponse> selfResponses, 
+    List<AdvisorResponse> advisorResponses
+  ) async {
+    AppLogger.debug('Identifying repositioning potential');
+    
+    final repositioningInsights = <SynthesisInsight>[];
+    
+    // Look for patterns where advisors use different language than self
+    final selfLanguageMap = _extractLanguagePatterns(selfResponses.map((r) => r.response).toList());
+    final advisorLanguageMap = _extractLanguagePatterns(advisorResponses.map((r) => r.response).toList());
+    
+    // Find themes where advisor language is more strategic/impactful
+    final commonThemes = _findCommonThemes(
+      _extractThemesFromResponses(selfResponses),
+      _extractThemesFromAdvisorResponses(advisorResponses)
+    );
+    
+    for (final theme in commonThemes.take(3)) {
+      final selfLanguage = selfLanguageMap[theme] ?? [];
+      final advisorLanguage = advisorLanguageMap[theme] ?? [];
+      
+      if (advisorLanguage.isNotEmpty && _isMoreStrategicLanguage(advisorLanguage, selfLanguage)) {
+        final insight = SynthesisInsight(
+          id: 'positioning_${DateTime.now().millisecondsSinceEpoch}',
+          title: 'Positioning Enhancement: ${_formatThemeTitle(theme)}',
+          description: 'Advisors describe your $theme capabilities using more strategic language than you do. This suggests an opportunity to reframe how you communicate this strength.',
+          category: SynthesisCategory.positioning,
+          supportingEvidence: advisorLanguage.take(2).toList(),
+          strategicImportance: 4, // High importance for career positioning
+          actionableAdvice: 'Adopt more strategic language when describing your $theme capabilities. Use terms like "${advisorLanguage.first}" to better position your impact.',
+          relatedThemes: [theme],
+          confidence: 0.7,
+        );
+        
+        repositioningInsights.add(insight);
+      }
+    }
+    
+    return repositioningInsights;
+  }
+  
+  Future<String> _generateExecutiveSummary({
+    required List<CareerResponse> selfResponses,
     required List<AdvisorResponse> advisorResponses,
     required double alignmentScore,
-    required FiveInsightsModel fiveInsights}) async => 'Executive summary placeholder';
+    required FiveInsightsModel fiveInsights
+  }) async {
+    AppLogger.debug('Generating executive summary for career synthesis');
     
-  Future<List<String>> _generateStrategicRecommendations(
-    {required FiveInsightsModel fiveInsights,
+    final buffer = StringBuffer();
+    
+    // Opening statement based on alignment score
+    if (alignmentScore >= 0.8) {
+      buffer.writeln('Your self-perception strongly aligns with external feedback, indicating excellent self-awareness and a solid foundation for strategic career decisions.');
+    } else if (alignmentScore >= 0.6) {
+      buffer.writeln('Your self-perception shows good alignment with external feedback, with some valuable differences that represent growth opportunities.');
+    } else {
+      buffer.writeln('Your self-perception and external feedback reveal significant differences, highlighting substantial opportunities for development and better positioning.');
+    }
+    
+    buffer.writeln('');
+    
+    // Five Insights summary
+    if (fiveInsights.energisingStrengths.isNotEmpty) {
+      final topEnergising = fiveInsights.energisingStrengths.first;
+      buffer.writeln('Your strongest energising capability is ${topEnergising.title.toLowerCase()}, where high skill meets high energy and strong external recognition.');
+    }
+    
+    if (fiveInsights.hiddenStrengths.isNotEmpty) {
+      final topHidden = fiveInsights.hiddenStrengths.first;
+      buffer.writeln('A key opportunity lies in better leveraging your ${topHidden.title.toLowerCase()}, which others recognize more than you might appreciate.');
+    }
+    
+    if (fiveInsights.overusedTalents.isNotEmpty) {
+      final topOverused = fiveInsights.overusedTalents.first;
+      if (topOverused.requiresImmediateAttention) {
+        buffer.writeln('Attention is needed to rebalance your ${topOverused.title.toLowerCase()} to prevent burnout while maintaining effectiveness.');
+      }
+    }
+    
+    buffer.writeln('');
+    
+    // Strategic positioning
+    final totalResponses = selfResponses.length + advisorResponses.length;
+    buffer.writeln('This analysis synthesizes $totalResponses total responses (${selfResponses.length} self-assessment, ${advisorResponses.length} advisor feedback) to create a comprehensive view of your career profile suited for the Australian professional context.');
+    
+    return buffer.toString();
+  }
+    
+  Future<List<String>> _generateStrategicRecommendations({
+    required FiveInsightsModel fiveInsights,
     required Map<String, dynamic> johariWindow,
-    required Map<String, dynamic> truthsTensionsExperiment}) async => [];
+    required Map<String, dynamic> truthsTensionsExperiment
+  }) async {
+    AppLogger.debug('Generating strategic recommendations');
     
-  SynthesisConfidence _calculateConfidenceLevel(List<CareerResponse> self, List<AdvisorResponse> advisor) => SynthesisConfidence.medium;
+    final recommendations = <String>[];
+    
+    // Recommendations based on energising strengths
+    if (fiveInsights.energisingStrengths.isNotEmpty) {
+      final topEnergising = fiveInsights.energisingStrengths.first;
+      recommendations.add('Prioritize roles and projects that leverage your ${topEnergising.title.toLowerCase()} - this is where you\'ll achieve peak performance with sustained energy.');
+    }
+    
+    // Recommendations based on hidden strengths
+    if (fiveInsights.hiddenStrengths.isNotEmpty) {
+      final topHidden = fiveInsights.hiddenStrengths.first;
+      recommendations.add('Increase visibility of your ${topHidden.title.toLowerCase()} through strategic projects, presentations, or mentoring opportunities.');
+    }
+    
+    // Recommendations based on overused talents
+    if (fiveInsights.overusedTalents.isNotEmpty) {
+      final urgentOveruse = fiveInsights.overusedTalents.where((t) => t.requiresImmediateAttention);
+      if (urgentOveruse.isNotEmpty) {
+        final talent = urgentOveruse.first;
+        recommendations.add('Implement boundaries around ${talent.title.toLowerCase()} to prevent burnout - delegate, automate, or redesign how you apply this strength.');
+      }
+    }
+    
+    // Recommendations based on aspirational strengths
+    if (fiveInsights.aspirationalStrengths.isNotEmpty) {
+      final worthyAspiration = fiveInsights.aspirationalStrengths.where((s) => s.isWorthInvesting);
+      if (worthyAspiration.isNotEmpty) {
+        final aspiration = worthyAspiration.first;
+        recommendations.add('Invest in developing ${aspiration.title.toLowerCase()} through structured learning and practice opportunities over the next ${aspiration.timeframe} months.');
+      }
+    }
+    
+    // Recommendations based on Johari Window
+    final blindSpotCount = johariWindow['blind_spot']?['count'] ?? 0;
+    if (blindSpotCount > 0) {
+      recommendations.add('Schedule regular feedback conversations to explore blind spot areas and increase self-awareness.');
+    }
+    
+    final hiddenArenaCount = johariWindow['hidden_arena']?['count'] ?? 0;
+    if (hiddenArenaCount > 0) {
+      recommendations.add('Create more opportunities to showcase your capabilities that others aren\'t yet aware of.');
+    }
+    
+    // Australian workplace specific recommendations
+    recommendations.add('Leverage Australia\'s collaborative workplace culture by seeking mentoring relationships and cross-functional project opportunities.');
+    
+    if (recommendations.length < 3) {
+      recommendations.add('Focus on building a strong professional network within the Australian market to amplify your career opportunities.');
+      recommendations.add('Consider how your unique combination of strengths can contribute to Australia\'s evolving workplace needs.');
+    }
+    
+    return recommendations.take(8).toList();
+  }
+    
+  SynthesisConfidence _calculateConfidenceLevel(List<CareerResponse> selfResponses, List<AdvisorResponse> advisorResponses) {
+    if (selfResponses.isEmpty || advisorResponses.isEmpty) {
+      return SynthesisConfidence.low;
+    }
+    
+    // Calculate average response quality
+    final avgSelfQuality = selfResponses
+        .map((r) => r.reflectionQualityScore)
+        .reduce((a, b) => a + b) / selfResponses.length;
+    
+    final avgAdvisorQuality = advisorResponses
+        .map((r) => r.responseQualityScore)
+        .reduce((a, b) => a + b) / advisorResponses.length;
+    
+    final avgAdvisorCredibility = advisorResponses
+        .map((r) => r.credibilityWeight)
+        .reduce((a, b) => a + b) / advisorResponses.length;
+    
+    // Calculate data sufficiency
+    final responseCount = selfResponses.length + advisorResponses.length;
+    final dataSufficiency = (responseCount / 20.0).clamp(0.0, 1.0); // Normalize to max 20 responses
+    
+    // Calculate domain coverage
+    final selfDomains = selfResponses.map((r) => r.domain).toSet().length;
+    final advisorDomains = advisorResponses.map((r) => r.domain).toSet().length;
+    final domainCoverage = ((selfDomains + advisorDomains) / CareerDomain.values.length).clamp(0.0, 1.0);
+    
+    // Weighted confidence score
+    final confidenceScore = (avgSelfQuality * 0.2) + 
+                           (avgAdvisorQuality * 0.3) + 
+                           (avgAdvisorCredibility * 0.3) + 
+                           (dataSufficiency * 0.1) + 
+                           (domainCoverage * 0.1);
+    
+    if (confidenceScore >= 0.75) {
+      return SynthesisConfidence.high;
+    } else if (confidenceScore >= 0.55) {
+      return SynthesisConfidence.medium;
+    } else {
+      return SynthesisConfidence.low;
+    }
+  }
   
   Map<String, dynamic> _createSynthesisMetadata({
     required FiveInsightsModel fiveInsights,
     required Map<String, dynamic> johariWindow,
     required Map<String, dynamic> truthsTensionsExperiment,
     Map<String, dynamic>? additionalContext,
-  }) => {};
+  }) {
+    return {
+      'generation_timestamp': DateTime.now().toIso8601String(),
+      'version': '1.0.0',
+      'australian_context': true,
+      'five_insights_summary': {
+        'total_insights': fiveInsights.totalInsights,
+        'balance_score': fiveInsights.balanceScore,
+        'dominant_category': fiveInsights.dominantCategory.name,
+        'is_well_balanced': fiveInsights.isWellBalanced,
+      },
+      'johari_analysis': {
+        'dominant_quadrant': johariWindow['analysis']?['dominant_quadrant'] ?? 'unknown',
+        'self_awareness_score': johariWindow['analysis']?['self_awareness_score'] ?? 0.0,
+        'development_priority': johariWindow['analysis']?['development_priority'] ?? 0.0,
+      },
+      'truths_tensions_experiment': {
+        'truths_confidence': truthsTensionsExperiment['three_truths']?['confidence_score'] ?? 0.0,
+        'tensions_opportunity': truthsTensionsExperiment['two_tensions']?['opportunity_score'] ?? 0.0,
+        'experiment_feasibility': truthsTensionsExperiment['one_experiment']?['feasibility_score'] ?? 0.0,
+      },
+      'processing_stats': {
+        'themes_analyzed': _getUniqueThemeCount(),
+        'evidence_points': _getTotalEvidencePoints(),
+        'synthesis_complexity': _calculateSynthesisComplexity(fiveInsights, johariWindow),
+      },
+      'additional_context': additionalContext ?? {},
+    };
+  }
 
   double _calculateInsightBalance(List<int> counts) {
     if (counts.isEmpty) return 0.0;
@@ -675,7 +1052,7 @@ class CareerSynthesisEngine {
     final commonThemes = _findCommonThemes(_extractThemesFromResponses(self), _extractThemesFromAdvisorResponses(advisor));
     if (commonThemes.isNotEmpty) {
       truths.add({
-        'title': 'Your Consistent Professional Identity: ${commonThemes.first}',
+        'title': 'Your Consistent Professional Identity: ${_formatThemeTitle(commonThemes.first)}',
         'description': 'This theme appears consistently across both your self-reflection and others\' observations.',
         'confidence': 0.85,
         'supporting_evidence': _findEvidenceForTheme(commonThemes.first, self, advisor),
@@ -684,11 +1061,12 @@ class CareerSynthesisEngine {
     }
     
     // Truth 3: Values-driven motivation (if clear)
-    final valuesResponses = self.where((r) => r.domain == CareerDomain.values).toList();
+    final valuesResponses = self.where((r) => r.keyThemes.any((theme) => 
+        ['impact', 'purpose', 'growth', 'collaboration', 'excellence', 'innovation'].contains(theme.toLowerCase()))).toList();
     if (valuesResponses.isNotEmpty) {
       final topValue = _extractTopValue(valuesResponses);
       truths.add({
-        'title': 'Your Core Professional Driver: $topValue',
+        'title': 'Your Core Professional Driver: ${_formatThemeTitle(topValue)}',
         'description': 'This value consistently motivates your career choices and professional satisfaction.',
         'confidence': 0.75,
         'supporting_evidence': valuesResponses.map((r) => r.response).take(2).toList(),
@@ -766,7 +1144,7 @@ class CareerSynthesisEngine {
     return avgOpportunity;
   }
   
-  Future<CareerExperiment?> _createVisibilityExperiment(HiddenStrength strength) async {
+  Future<CareerExperiment?> _createVisibilityExperiment(dynamic strength) async {
     return CareerExperiment.create(
       title: 'Showcase Hidden Strength: ${strength.title}',
       description: 'A 30-day experiment to increase visibility and recognition of your ${strength.title} capabilities.',
@@ -812,7 +1190,7 @@ class CareerSynthesisEngine {
     );
   }
 
-  Future<CareerExperiment?> _createDevelopmentExperiment(AspirationalStrength strength) async {
+  Future<CareerExperiment?> _createDevelopmentExperiment(dynamic strength) async {
     return CareerExperiment.create(
       title: 'Develop Aspirational Strength: ${strength.title}',
       description: 'A focused ${strength.timeframe > 30 ? '60' : '30'}-day experiment to develop your ${strength.title} capabilities.',
@@ -854,7 +1232,7 @@ class CareerSynthesisEngine {
     );
   }
 
-  Future<CareerExperiment?> _createRebalancingExperiment(OverusedTalent talent) async {
+  Future<CareerExperiment?> _createRebalancingExperiment(dynamic talent) async {
     return CareerExperiment.create(
       title: 'Rebalance Overused Talent: ${talent.title}',
       description: 'A 21-day experiment to create healthier boundaries and delegation around your ${talent.title} strength.',
@@ -987,7 +1365,7 @@ class CareerSynthesisEngine {
     // Find self responses containing the theme
     for (final response in self) {
       if (response.keyThemes.any((t) => t.toLowerCase().contains(theme.toLowerCase()))) {
-        evidence.add(response.response);
+        evidence.add('Self: "${_truncateText(response.response, 100)}"');
         if (evidence.length >= 2) break;
       }
     }
@@ -995,27 +1373,44 @@ class CareerSynthesisEngine {
     // Find advisor responses containing the theme
     for (final response in advisor) {
       if (response.keyThemes.any((t) => t.toLowerCase().contains(theme.toLowerCase()))) {
-        evidence.add(response.response);
-        if (evidence.length >= 3) break;
+        evidence.add('Advisor: "${_truncateText(response.response, 100)}"');
+        if (evidence.length >= 4) break;
       }
     }
     
     return evidence;
   }
+  
+  String _truncateText(String text, int maxLength) {
+    if (text.length <= maxLength) return text;
+    return '${text.substring(0, maxLength)}...';
+  }
 
   String _extractTopValue(List<CareerResponse> valuesResponses) {
-    // Simple extraction - could be more sophisticated
-    final commonValues = ['impact', 'growth', 'collaboration', 'autonomy', 'excellence', 'innovation'];
+    final valueFrequency = <String, int>{};
+    final commonValues = ['impact', 'growth', 'collaboration', 'autonomy', 'excellence', 'innovation', 'learning', 'helping', 'creativity', 'leadership'];
     
-    for (final value in commonValues) {
-      for (final response in valuesResponses) {
-        if (response.response.toLowerCase().contains(value)) {
-          return value;
+    for (final response in valuesResponses) {
+      final content = response.response.toLowerCase();
+      for (final value in commonValues) {
+        if (content.contains(value)) {
+          valueFrequency[value] = (valueFrequency[value] ?? 0) + 1;
+        }
+      }
+      
+      // Also check themes
+      for (final theme in response.keyThemes) {
+        if (commonValues.contains(theme.toLowerCase())) {
+          valueFrequency[theme.toLowerCase()] = (valueFrequency[theme.toLowerCase()] ?? 0) + 1;
         }
       }
     }
     
-    return 'meaningful_work';
+    if (valueFrequency.isEmpty) return 'meaningful_work';
+    
+    return valueFrequency.entries
+        .reduce((a, b) => a.value > b.value ? a : b)
+        .key;
   }
 
   String _findMostCommonTheme(List<String> themes) {
@@ -1428,5 +1823,198 @@ class CareerSynthesisEngine {
     }
     
     return score.clamp(0.0, 1.0);
+  }
+  
+  // ===== ADDITIONAL HELPER METHODS FOR SYNTHESIS =====
+  
+  /// Format theme title for display
+  String _formatThemeTitle(String theme) {
+    return theme.split('_').map((word) => 
+        word[0].toUpperCase() + word.substring(1)).join(' ');
+  }
+  
+  /// Count frequency of themes in a list
+  Map<String, int> _countThemeFrequency(List<String> themes) {
+    final frequency = <String, int>{};
+    for (final theme in themes) {
+      frequency[theme] = (frequency[theme] ?? 0) + 1;
+    }
+    return frequency;
+  }
+  
+  /// Calculate strategic importance based on frequency and context
+  int _calculateStrategicImportance(String theme, int evidenceCount) {
+    int importance = 3; // Base importance
+    
+    // Boost importance based on evidence count
+    if (evidenceCount >= 5) importance = 5;
+    else if (evidenceCount >= 3) importance = 4;
+    
+    // Boost importance for key career themes
+    final highValueThemes = ['leadership', 'strategic', 'innovation', 'communication', 'technical'];
+    if (highValueThemes.any((hvt) => theme.toLowerCase().contains(hvt))) {
+      importance = min(5, importance + 1);
+    }
+    
+    return importance;
+  }
+  
+  /// Calculate alignment confidence between self and advisor evidence
+  double _calculateAlignmentConfidence(List<String> selfEvidence, List<String> advisorEvidence) {
+    final baseConfidence = 0.5;
+    
+    // Higher confidence with more evidence from both sides
+    final evidenceBonus = min(0.3, (selfEvidence.length + advisorEvidence.length) * 0.05);
+    
+    // Bonus for balanced evidence
+    final balanceBonus = (selfEvidence.isNotEmpty && advisorEvidence.isNotEmpty) ? 0.2 : 0.0;
+    
+    return (baseConfidence + evidenceBonus + balanceBonus).clamp(0.0, 1.0);
+  }
+  
+  /// Calculate importance of hidden strength based on advisor feedback
+  int _calculateHiddenStrengthImportance(int advisorFrequency, double credibilityScore) {
+    int importance = 3;
+    
+    if (advisorFrequency >= 5 && credibilityScore >= 0.8) importance = 5;
+    else if (advisorFrequency >= 4 && credibilityScore >= 0.7) importance = 4;
+    else if (advisorFrequency >= 3 && credibilityScore >= 0.6) importance = 3;
+    else importance = 2;
+    
+    return importance;
+  }
+  
+  /// Calculate evidence credibility from advisor responses
+  double _calculateEvidenceCredibility(List<String> evidence, List<AdvisorResponse> advisorResponses) {
+    if (evidence.isEmpty || advisorResponses.isEmpty) return 0.0;
+    
+    double totalCredibility = 0.0;
+    int count = 0;
+    
+    for (final response in advisorResponses) {
+      if (evidence.any((e) => e.contains(response.response.substring(0, min(50, response.response.length))))) {
+        totalCredibility += response.credibilityWeight;
+        count++;
+      }
+    }
+    
+    return count > 0 ? totalCredibility / count : 0.0;
+  }
+  
+  /// Calculate self-confidence level from responses
+  double _calculateSelfConfidenceLevel(List<String> evidence, List<CareerResponse> selfResponses) {
+    if (evidence.isEmpty || selfResponses.isEmpty) return 0.0;
+    
+    double totalConfidence = 0.0;
+    int count = 0;
+    
+    for (final response in selfResponses) {
+      if (evidence.any((e) => e.contains(response.response.substring(0, min(50, response.response.length))))) {
+        totalConfidence += response.confidenceLevel ?? 3.0;
+        count++;
+      }
+    }
+    
+    return count > 0 ? (totalConfidence / count) / 5.0 : 0.0; // Normalize to 0-1
+  }
+  
+  /// Calculate development importance from advisor response
+  int _calculateDevelopmentImportance(AdvisorResponse response) {
+    int importance = 3; // Base importance
+    
+    // Boost for high-quality, credible responses
+    if (response.responseQualityScore >= 0.8 && response.credibilityWeight >= 0.8) {
+      importance = 5;
+    } else if (response.responseQualityScore >= 0.6 && response.credibilityWeight >= 0.6) {
+      importance = 4;
+    }
+    
+    // Additional boost for specific development language
+    final developmentKeywords = ['critical', 'essential', 'important', 'priority', 'focus'];
+    if (developmentKeywords.any((keyword) => response.response.toLowerCase().contains(keyword))) {
+      importance = min(5, importance + 1);
+    }
+    
+    return importance;
+  }
+  
+  /// Remove duplicate insights based on title similarity
+  List<SynthesisInsight> _removeDuplicateInsights(List<SynthesisInsight> insights) {
+    final unique = <SynthesisInsight>[];
+    final seenTitles = <String>{};
+    
+    for (final insight in insights) {
+      final normalizedTitle = insight.title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+      if (!seenTitles.contains(normalizedTitle)) {
+        seenTitles.add(normalizedTitle);
+        unique.add(insight);
+      }
+    }
+    
+    return unique;
+  }
+  
+  /// Extract language patterns from response texts
+  Map<String, List<String>> _extractLanguagePatterns(List<String> responses) {
+    final patterns = <String, List<String>>{};
+    
+    for (final response in responses) {
+      final words = response.toLowerCase().split(RegExp(r'\\W+'));
+      
+      // Look for strategic language patterns
+      final strategicWords = words.where((word) => 
+          ['strategic', 'leadership', 'innovative', 'exceptional', 'expertise', 'drive', 'transform', 'vision'].contains(word)
+      ).toList();
+      
+      if (strategicWords.isNotEmpty) {
+        // Simple theme extraction - could be more sophisticated
+        final theme = 'professional_capability';
+        patterns.putIfAbsent(theme, () => []).addAll(strategicWords);
+      }
+    }
+    
+    return patterns;
+  }
+  
+  /// Check if advisor language is more strategic than self language
+  bool _isMoreStrategicLanguage(List<String> advisorLanguage, List<String> selfLanguage) {
+    final strategicWords = ['strategic', 'leadership', 'expert', 'exceptional', 'drive', 'transform', 'vision', 'innovative'];
+    
+    final advisorStrategicCount = advisorLanguage.where((word) => strategicWords.contains(word)).length;
+    final selfStrategicCount = selfLanguage.where((word) => strategicWords.contains(word)).length;
+    
+    return advisorStrategicCount > selfStrategicCount;
+  }
+  
+  /// Get unique theme count across all responses
+  int _getUniqueThemeCount() {
+    // This would be calculated from the actual data in a real implementation
+    return 15; // Placeholder
+  }
+  
+  /// Get total evidence points collected
+  int _getTotalEvidencePoints() {
+    // This would be calculated from the actual data in a real implementation
+    return 42; // Placeholder
+  }
+  
+  /// Calculate synthesis complexity score
+  double _calculateSynthesisComplexity(FiveInsightsModel fiveInsights, Map<String, dynamic> johariWindow) {
+    double complexity = 0.5; // Base complexity
+    
+    // More insights = higher complexity
+    complexity += (fiveInsights.totalInsights / 20.0).clamp(0.0, 0.3);
+    
+    // More Johari quadrants with data = higher complexity
+    final johariComplexity = [
+      johariWindow['open_arena']?['count'] ?? 0,
+      johariWindow['blind_spot']?['count'] ?? 0,
+      johariWindow['hidden_arena']?['count'] ?? 0,
+      johariWindow['unknown_arena']?['count'] ?? 0,
+    ].where((count) => count > 0).length / 4.0;
+    
+    complexity += johariComplexity * 0.2;
+    
+    return complexity.clamp(0.0, 1.0);
   }
 }

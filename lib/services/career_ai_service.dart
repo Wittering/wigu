@@ -43,36 +43,36 @@ class CareerAIService {
     }
   }
   
-  /// The 5 top-line career exploration questions
+  /// The 5 top-line career questions for the self-assessment (as per specification)
   static const Map<String, Map<String, String>> topLineQuestions = {
     'joy_energy': {
       'id': 'joy_energy_main',
-      'question': 'What activities or situations make you feel most energised and joyful at work? Think about times when you lose track of time because you\'re so engaged.',
-      'domain': 'Personal Fulfillment',
+      'question': 'When do you feel most alive and lose track of time?',
+      'domain': 'Joy/Energy/Flow',
       'probe_context': 'joy, energy, flow states, engagement, enthusiasm, passion',
     },
     'strengths': {
       'id': 'strengths_main', 
-      'question': 'What are your natural strengths and talents that others consistently recognise in you? Include both technical skills and personal qualities.',
-      'domain': 'Core Capabilities',
+      'question': 'What do you consistently do better than most—and how do you know?',
+      'domain': 'Strengths (Self-Evidence)',
       'probe_context': 'strengths, talents, abilities, skills, competencies, natural gifts',
     },
     'sought_for': {
       'id': 'sought_for_main',
-      'question': 'What do people typically come to you for help with? What problems do others trust you to solve or what advice do they seek from you?',
-      'domain': 'Value to Others', 
+      'question': 'What do people seek you out for—and which of those asks actually light you up?',
+      'domain': 'Reflected Strengths vs Energy Filter',
       'probe_context': 'reputation, expertise, problem-solving, advice, consulting, helping others',
     },
     'values_impact': {
       'id': 'values_impact_main',
-      'question': 'What kind of impact do you want to make in the world, and what values drive your desire to contribute? What legacy would you like to leave?',
-      'domain': 'Purpose & Values',
+      'question': 'If you could help fix or improve one thing over the next few years, what would it be and why?',
+      'domain': 'Values/Impact',
       'probe_context': 'values, impact, purpose, contribution, legacy, meaning, difference',
     },
     'life_design': {
       'id': 'life_design_main',
-      'question': 'How do you want to design your ideal working life? Consider work-life integration, location flexibility, team dynamics, and lifestyle preferences.',
-      'domain': 'Lifestyle & Integration',
+      'question': 'What does "a great work life" look like for you—non-negotiables, nice-to-haves, and deal-breakers?',
+      'domain': 'Life Design & Constraints',
       'probe_context': 'lifestyle, work-life balance, flexibility, autonomy, environment, preferences',
     },
   };
@@ -162,6 +162,145 @@ class CareerAIService {
     } catch (e, stackTrace) {
       AppLogger.error('Error generating probing questions for $domain', e, stackTrace);
       return _getFallbackProbingQuestions(questionId, domain);
+    }
+  }
+
+  /// Extract ingredients (verbs, nouns, value words) from a user response
+  Future<List<String>> extractIngredients({
+    required String questionId,
+    required String questionText,
+    required String userResponse,
+    required String domain,
+  }) async {
+    if (_apiKey == null) {
+      return _getFallbackIngredients(userResponse);
+    }
+
+    try {
+      AppLogger.debug('Extracting ingredients from response for $domain');
+      final stopwatch = Stopwatch()..start();
+
+      final extractionPrompt = _buildIngredientExtractionPrompt(
+        questionId: questionId,
+        questionText: questionText,
+        userResponse: userResponse,
+        domain: domain,
+      );
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_apiKey',
+        },
+        body: jsonEncode({
+          'model': 'gpt-4o-mini',
+          'messages': [
+            {
+              'role': 'system',
+              'content': _getIngredientExtractionSystemPrompt(),
+            },
+            {
+              'role': 'user',
+              'content': extractionPrompt,
+            }
+          ],
+          'max_tokens': 400,
+          'temperature': 0.3,
+        }),
+      ).timeout(_requestTimeout);
+
+      stopwatch.stop();
+      AppLogger.performance('AI ingredient extraction', stopwatch.elapsed, {
+        'domain': domain,
+        'response_length': userResponse.length,
+      });
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final content = data['choices'][0]['message']['content'];
+        
+        try {
+          final responseData = jsonDecode(content);
+          final ingredients = (responseData['ingredients'] as List?)?.cast<String>() ?? [];
+          
+          AppLogger.info('Extracted ${ingredients.length} ingredients for $domain');
+          return ingredients.take(5).toList(); // Limit to top 5 ingredients
+        } catch (e) {
+          // Fallback to text parsing if JSON parsing fails
+          return _parseIngredientsFromText(content);
+        }
+      } else {
+        throw Exception('OpenAI API request failed: ${response.statusCode} - ${response.reasonPhrase}');
+      }
+    } catch (e, stackTrace) {
+      AppLogger.error('Error extracting ingredients for $domain', e, stackTrace);
+      return _getFallbackIngredients(userResponse);
+    }
+  }
+
+  /// Generate potential career path suggestions based on user responses
+  Future<List<Map<String, dynamic>>> generateCareerPathSuggestions({
+    required List<CareerResponse> responses,
+    required String sessionId,
+  }) async {
+    if (responses.isEmpty) {
+      AppLogger.info('No responses provided for career path generation');
+      return [];
+    }
+
+    if (_apiKey == null) {
+      return _getFallbackCareerPaths(responses);
+    }
+
+    try {
+      AppLogger.debug('Generating career path suggestions from ${responses.length} responses');
+      final stopwatch = Stopwatch()..start();
+
+      final pathPrompt = _buildCareerPathPrompt(responses, sessionId);
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_apiKey',
+        },
+        body: jsonEncode({
+          'model': 'gpt-4o',
+          'messages': [
+            {
+              'role': 'system',
+              'content': _getCareerPathSystemPrompt(),
+            },
+            {
+              'role': 'user',
+              'content': pathPrompt,
+            }
+          ],
+          'max_tokens': 2000,
+          'temperature': 0.7,
+        }),
+      ).timeout(_requestTimeout);
+
+      stopwatch.stop();
+      AppLogger.performance('AI career path generation', stopwatch.elapsed, {
+        'response_count': responses.length,
+        'session_id': sessionId,
+      });
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final content = data['choices'][0]['message']['content'];
+        
+        final careerPaths = _parseCareerPathsFromAIResponse(content);
+        AppLogger.info('Generated ${careerPaths.length} career path suggestions');
+        return careerPaths;
+      } else {
+        throw Exception('OpenAI API request failed: ${response.statusCode} - ${response.reasonPhrase}');
+      }
+    } catch (e, stackTrace) {
+      AppLogger.error('Error generating career paths', e, stackTrace);
+      return _getFallbackCareerPaths(responses);
     }
   }
 
@@ -369,6 +508,8 @@ class CareerAIService {
     final hasSpecificExamples = userResponse.toLowerCase().contains(RegExp(r'\b(for example|specifically|when|I)\b'));
     final hasVagueLanguage = userResponse.toLowerCase().contains(RegExp(r'\b(generally|sometimes|often|maybe)\b'));
     
+    final probeBank = _getProbeBank(questionId);
+    
     return '''
 CAREER EXPLORATION PROBING - AUSTRALIAN CONTEXT:
 
@@ -386,31 +527,70 @@ RESPONSE ANALYSIS:
 - Contains vague language: ${hasVagueLanguage ? 'Yes' : 'No'}
 - Probe session: ${previousProbes.length + 1}/4 maximum
 
-CAREER EXPLORATION REQUIREMENTS:
-Assess if this response provides sufficient insight for meaningful career guidance. A comprehensive career response should include:
-1. Specific examples or situations
-2. Emotional/energy indicators (what feels energising vs draining)
-3. Context about frequency, impact, or recognition
-4. Personal reflections on why this matters to them
-5. Concrete details rather than generalisations
+APPROVED PROBE BANK for this question:
+${probeBank.map((p) => '- $p').join('\n')}
 
-If the response lacks depth in the career exploration context, generate 1-2 targeted follow-up questions that will:
-- Uncover specific examples and situations
-- Explore emotional and energy connections
-- Clarify the significance and frequency of experiences
-- Reveal underlying values and motivations
-- Connect to practical career implications
+INSTRUCTIONS:
+Assess if this response provides sufficient insight for meaningful career guidance. If more detail is needed, select 1-2 probes from the approved probe bank above that would be most relevant given their previous response.
+
+ONLY use probes from the approved bank. Do not create new questions.
 
 Return JSON with this structure:
 {
   "needsMoreDetail": true/false,
   "detailLevel": "surface/adequate/substantial/comprehensive",
-  "questions": ["question1", "question2"],
+  "questions": ["selected probe 1", "selected probe 2"],
   "reasoning": "brief explanation focused on career exploration depth"
 }
 
 Stop probing only when you have specific, emotionally-connected career insights that can guide career decisions.
 ''';
+  }
+
+  /// Get the approved probe bank for a specific question
+  List<String> _getProbeBank(String questionId) {
+    switch (questionId) {
+      case 'joy_energy_main':
+        return [
+          'Tell me about the last time that happened—what were you doing and with whom?',
+          'What part gave you the buzz: the challenge, the people, the outcome, the craft?',
+          'What \'ingredients\' show up across those moments?',
+          'When it doesn\'t happen, what\'s usually missing?',
+        ];
+      case 'strengths_main':
+        return [
+          'Share a story where that strength changed the outcome—what did you uniquely add?',
+          'Who\'s told you this and what exact words did they use?',
+          'How did you build that capability?',
+          'Where might you be overrating yourself?',
+        ];
+      case 'sought_for_main':
+        return [
+          'List three types of problems people bring you. Which one excites you most?',
+          'What do you wish they\'d ask you for instead?',
+          'Have you started saying \'no\' to some requests? Why?',
+          'What feedback keeps repeating?',
+        ];
+      case 'values_impact_main':
+        return [
+          'Who benefits and how do their lives change?',
+          'Why this problem—what\'s the personal hook?',
+          'Would you still care if nobody knew you did it?',
+          'What scale feels right—one person, a team, an industry, the planet?',
+        ];
+      case 'life_design_main':
+        return [
+          'Rank these: pay, autonomy, stability, flexibility, status, learning, impact.',
+          'Which trade-offs are you willing to make?',
+          'Describe your ideal week (hours, rhythms, people contact).',
+          'What would success vs disappointment look like in 12 months?',
+        ];
+      default:
+        return [
+          'Can you provide a specific example that illustrates your point?',
+          'What makes this particularly important or meaningful to you?',
+        ];
+    }
   }
 
   /// Get the system prompt for career-specific probing
@@ -541,28 +721,38 @@ Make every insight actionable and tied to specific career development opportunit
     switch (questionId) {
       case 'joy_energy_main':
         return [
-          'Can you describe a specific time recently when you felt completely energised at work? What exactly were you doing?',
-          'What activities do you find yourself doing in your spare time that give you similar energy to your best work moments?',
+          'Tell me about the last time that happened—what were you doing and with whom?',
+          'What part gave you the buzz: the challenge, the people, the outcome, the craft?',
+          'What \'ingredients\' show up across those moments?',
+          'When it doesn\'t happen, what\'s usually missing?',
         ];
       case 'strengths_main':
         return [
-          'Can you share a specific example of when someone complimented your work or sought your expertise? What was the situation?',
-          'What comes so naturally to you that you sometimes forget others find it difficult?',
+          'Share a story where that strength changed the outcome—what did you uniquely add?',
+          'Who\'s told you this and what exact words did they use?',
+          'How did you build that capability?',
+          'Where might you be overrating yourself?',
         ];
       case 'sought_for_main':
         return [
-          'Think about the last few times colleagues or friends asked for your help. What were the common themes in what they needed?',
-          'What type of problems do people bring to you repeatedly, even if it\'s not officially part of your role?',
+          'List three types of problems people bring you. Which one excites you most?',
+          'What do you wish they\'d ask you for instead?',
+          'Have you started saying \'no\' to some requests? Why?',
+          'What feedback keeps repeating?',
         ];
       case 'values_impact_main':
         return [
-          'Can you describe a project or achievement that made you feel most proud? What about it was meaningful to you?',
-          'What issues or causes do you find yourself talking about passionately with others?',
+          'Who benefits and how do their lives change?',
+          'Why this problem—what\'s the personal hook?',
+          'Would you still care if nobody knew you did it?',
+          'What scale feels right—one person, a team, an industry, the planet?',
         ];
       case 'life_design_main':
         return [
-          'Describe your ideal workday from start to finish. Where are you, who are you with, and what are you doing?',
-          'What aspects of your current work setup energise you, and what aspects drain your energy?',
+          'Rank these: pay, autonomy, stability, flexibility, status, learning, impact.',
+          'Which trade-offs are you willing to make?',
+          'Describe your ideal week (hours, rhythms, people contact).',
+          'What would success vs disappointment look like in 12 months?',
         ];
       default:
         return [
@@ -934,6 +1124,462 @@ Make every insight actionable and tied to specific career development opportunit
         'Look for stretch assignments that develop leadership skills',
       ],
       'summary': 'Your self-perception aligns well with how others see your core strengths. Focus on building visibility around your strategic capabilities and expanding your leadership experience.',
+    };
+  }
+
+  /// Build prompt for ingredient extraction
+  String _buildIngredientExtractionPrompt({
+    required String questionId,
+    required String questionText,
+    required String userResponse,
+    required String domain,
+  }) {
+    return '''
+INGREDIENT EXTRACTION - AUSTRALIAN CONTEXT:
+
+DOMAIN: $domain
+QUESTION: $questionText
+USER RESPONSE: "$userResponse"
+
+TASK: Extract key "ingredients" from this response - the verbs, nouns, and value words that capture the essence of what the person is describing.
+
+EXTRACTION GUIDELINES:
+1. VERBS: Action words that show what they do or what energises them
+2. NOUNS: Concrete things, roles, environments, or contexts they mention
+3. VALUES: Abstract concepts that drive or motivate them
+4. Keep ingredients concise (1-3 words each)
+5. Focus on the most significant elements that reveal career patterns
+6. Maximum 5 ingredients per response
+
+EXAMPLE EXTRACTION:
+Response: "I was designing a workshop with a friend; 4 hours flew by. We mapped customer journeys, argued about personas, and built activities. I forgot to eat."
+Ingredients: ["designing workshops", "collaboration", "creative problem solving", "teaching through activities", "time blindness = good sign"]
+
+Return JSON format:
+{
+  "ingredients": ["ingredient 1", "ingredient 2", "ingredient 3", "ingredient 4", "ingredient 5"]
+}
+
+Extract the ingredients that best capture the career-relevant essence of their response.
+''';
+  }
+
+  /// Get system prompt for ingredient extraction
+  String _getIngredientExtractionSystemPrompt() {
+    return '''You are an expert career analyst specialising in extracting key "ingredients" from career exploration responses.
+
+LANGUAGE REQUIREMENTS:
+- Use Australian English spelling and terminology
+- Frame extractions in Australian professional context
+
+INGREDIENT EXTRACTION EXPERTISE:
+- Identify action words (verbs) that reveal what energises someone
+- Extract concrete elements (nouns) that show environments, tools, or contexts
+- Recognise value words that indicate what drives motivation
+- Focus on career-relevant patterns rather than incidental details
+- Distil responses to their essential elements
+
+EXTRACTION PRINCIPLES:
+- Prioritise elements that could guide career decisions
+- Look for patterns that might not be obvious to the person themselves
+- Extract ingredients that could be matched or combined across responses
+- Focus on specificity over generality
+- Limit to the most significant 3-5 ingredients per response
+
+Your goal is to capture the career DNA from each response - the essential elements that reveal someone's authentic professional self.''';
+  }
+
+  /// Parse ingredients from AI text response if JSON parsing fails
+  List<String> _parseIngredientsFromText(String content) {
+    final ingredients = <String>[];
+    final lines = content.split('\n');
+    
+    for (final line in lines) {
+      if (line.contains('"') && !line.startsWith('//') && !line.startsWith('#')) {
+        final matches = RegExp(r'"([^"]+)"').allMatches(line);
+        for (final match in matches) {
+          final ingredient = match.group(1);
+          if (ingredient != null && ingredient.length > 2 && ingredient.length < 50) {
+            ingredients.add(ingredient);
+          }
+        }
+      }
+    }
+    
+    return ingredients.take(5).toList();
+  }
+
+  /// Generate fallback ingredients when AI is unavailable
+  List<String> _getFallbackIngredients(String userResponse) {
+    AppLogger.info('Using fallback ingredient extraction');
+    
+    final ingredients = <String>[];
+    final text = userResponse.toLowerCase();
+    
+    // Common career-relevant keywords to extract
+    final keywordPatterns = {
+      'leadership': ['lead', 'manage', 'guide', 'mentor', 'coach'],
+      'creativity': ['design', 'create', 'innovate', 'artistic', 'creative'],
+      'collaboration': ['team', 'collaborate', 'together', 'partnership', 'group'],
+      'problem solving': ['solve', 'problem', 'troubleshoot', 'figure out', 'fix'],
+      'communication': ['present', 'explain', 'communicate', 'speak', 'write'],
+      'analysis': ['analyse', 'research', 'data', 'investigate', 'study'],
+      'teaching': ['teach', 'train', 'educate', 'workshop', 'explain'],
+      'building': ['build', 'develop', 'create', 'construct', 'make'],
+    };
+    
+    keywordPatterns.forEach((ingredient, keywords) {
+      if (keywords.any((keyword) => text.contains(keyword))) {
+        ingredients.add(ingredient);
+      }
+    });
+    
+    // Add some basic extracted nouns and verbs
+    final words = userResponse.split(RegExp(r'\W+'));
+    final actionWords = words.where((word) => 
+        word.length > 4 && 
+        (word.endsWith('ing') || word.endsWith('ed') || word.endsWith('er'))
+    ).take(2);
+    
+    ingredients.addAll(actionWords);
+    
+    return ingredients.take(5).toList();
+  }
+
+  /// Build prompt for career path suggestions
+  String _buildCareerPathPrompt(List<CareerResponse> responses, String sessionId) {
+    final responsesByType = <String, List<CareerResponse>>{};
+    
+    for (final response in responses) {
+      final type = _getQuestionType(response.questionId);
+      responsesByType.putIfAbsent(type, () => []).add(response);
+    }
+    
+    final buffer = StringBuffer();
+    buffer.writeln('CAREER PATH SUGGESTION ANALYSIS - SESSION: $sessionId');
+    buffer.writeln('TOTAL RESPONSES: ${responses.length}');
+    buffer.writeln('');
+    
+    responsesByType.forEach((type, typeResponses) {
+      buffer.writeln('=== ${type.toUpperCase().replaceAll('_', ' ')} RESPONSES ===');
+      for (final response in typeResponses) {
+        buffer.writeln('Question: ${response.questionText}');
+        buffer.writeln('Response: ${response.response}');
+        buffer.writeln('Themes: ${response.keyThemes.join(', ')}');
+        buffer.writeln('');
+      }
+    });
+    
+    buffer.writeln('CAREER PATH REQUIREMENTS:');
+    buffer.writeln('Generate 4-6 potential career paths that align with this person\'s responses.');
+    buffer.writeln('Each path should:');
+    buffer.writeln('- Connect to specific evidence from their responses');
+    buffer.writeln('- Feel like a natural fit for their energy patterns and values');
+    buffer.writeln('- Include both traditional roles and emerging opportunities');
+    buffer.writeln('- Be presented as gentle suggestions, not prescriptions');
+    buffer.writeln('- Include a brief rationale for why this path might bring them joy');
+    buffer.writeln('- Consider their stated lifestyle preferences and constraints');
+    
+    return buffer.toString();
+  }
+
+  /// Get system prompt for career path suggestions
+  String _getCareerPathSystemPrompt() {
+    return '''You are an expert career counsellor specialising in identifying potential career paths that align with someone's authentic interests, strengths, and values.
+
+LANGUAGE REQUIREMENTS:
+- Use Australian English spelling and terminology throughout
+- Frame suggestions in Australian workplace context
+- Use encouraging, non-prescriptive language
+
+CAREER PATH EXPERTISE:
+- Identify roles that match energy patterns and natural strengths
+- Consider both traditional career paths and emerging opportunities
+- Look for alignment between values, lifestyle preferences, and work environments
+- Recognise patterns that might suggest unconventional but fulfilling paths
+- Balance aspiration with practical considerations
+
+SUGGESTION APPROACH:
+- Present paths as "areas to explore" rather than definitive recommendations
+- Use phrases like "you might find joy in..." or "this could be worth exploring..."
+- Include specific connections to their responses as evidence
+- Suggest both immediate opportunities and longer-term possibilities
+- Consider different levels of career change (pivot vs complete shift)
+
+OUTPUT REQUIREMENTS:
+Return JSON with this structure:
+{
+  "careerPaths": [
+    {
+      "title": "Path title (e.g., 'Learning & Development Specialist')",
+      "description": "Brief description of what this path involves",
+      "whyThisPath": "Specific evidence from their responses that suggests this fit",
+      "joyFactors": ["factor 1", "factor 2", "factor 3"],
+      "explorationSteps": ["step 1", "step 2", "step 3"],
+      "timeframe": "immediate/short-term/long-term"
+    }
+  ]
+}
+
+Focus on paths where they're likely to find genuine satisfaction and energy, not just what they're qualified for.''';
+  }
+
+  /// Parse career paths from AI response
+  List<Map<String, dynamic>> _parseCareerPathsFromAIResponse(String content) {
+    try {
+      final data = jsonDecode(content);
+      if (data is Map && data.containsKey('careerPaths')) {
+        return (data['careerPaths'] as List).cast<Map<String, dynamic>>();
+      }
+    } catch (e) {
+      AppLogger.warning('Failed to parse career paths JSON, using fallback parsing');
+      return _parseCareerPathsFromText(content);
+    }
+    
+    return [];
+  }
+
+  /// Parse career paths from text content if JSON parsing fails
+  List<Map<String, dynamic>> _parseCareerPathsFromText(String content) {
+    final paths = <Map<String, dynamic>>[];
+    final sections = content.split('\n\n');
+    
+    for (int i = 0; i < sections.length && paths.length < 6; i++) {
+      final section = sections[i].trim();
+      if (section.length > 100 && section.contains(':')) {
+        final lines = section.split('\n');
+        final title = lines.first.replaceAll(RegExp(r'^\d+\.?\s*'), '').trim();
+        final description = lines.skip(1).join(' ').trim();
+        
+        paths.add({
+          'title': title,
+          'description': description,
+          'whyThisPath': 'Based on your responses about energy and interests',
+          'joyFactors': ['meaningful work', 'using your strengths', 'alignment with values'],
+          'explorationSteps': ['Research the field', 'Connect with professionals', 'Try a small project'],
+          'timeframe': 'short-term',
+        });
+      }
+    }
+    
+    return paths;
+  }
+
+  /// Generate fallback career paths when AI is unavailable
+  List<Map<String, dynamic>> _getFallbackCareerPaths(List<CareerResponse> responses) {
+    AppLogger.info('Generating fallback career paths from ${responses.length} responses');
+    
+    final paths = <Map<String, dynamic>>[];
+    final allThemes = responses.expand((r) => r.keyThemes).toSet().toList();
+    
+    // Generate paths based on detected themes
+    if (allThemes.contains('leadership') || allThemes.contains('collaboration')) {
+      paths.add({
+        'title': 'Team Leadership & Development',
+        'description': 'Roles focused on guiding teams and developing others\' potential',
+        'whyThisPath': 'Your responses suggest energy from working with and guiding others',
+        'joyFactors': ['mentoring others', 'building team culture', 'seeing others succeed'],
+        'explorationSteps': ['Shadow a team leader', 'Volunteer to mentor someone', 'Take on a small team project'],
+        'timeframe': 'short-term',
+      });
+    }
+    
+    if (allThemes.contains('creativity') || allThemes.contains('innovation')) {
+      paths.add({
+        'title': 'Creative Problem Solving',
+        'description': 'Roles that blend creativity with practical problem-solving',
+        'whyThisPath': 'Your responses indicate energy from creative and innovative thinking',
+        'joyFactors': ['creative expression', 'solving complex challenges', 'bringing ideas to life'],
+        'explorationSteps': ['Join a creative project', 'Explore design thinking workshops', 'Build something new'],
+        'timeframe': 'immediate',
+      });
+    }
+    
+    if (allThemes.contains('growth') || allThemes.contains('learning')) {
+      paths.add({
+        'title': 'Learning & Development',
+        'description': 'Roles focused on education, training, and helping others grow',
+        'whyThisPath': 'Your responses show passion for continuous learning and development',
+        'joyFactors': ['lifelong learning', 'sharing knowledge', 'helping others grow'],
+        'explorationSteps': ['Teach someone a skill', 'Create educational content', 'Attend training workshops'],
+        'timeframe': 'short-term',
+      });
+    }
+    
+    // Always include a reflection path
+    paths.add({
+      'title': 'Portfolio Career',
+      'description': 'Combining multiple interests and skills in a flexible career structure',
+      'whyThisPath': 'Your diverse interests and values suggest you might thrive with variety',
+      'joyFactors': ['variety and flexibility', 'using multiple skills', 'creating your own path'],
+      'explorationSteps': ['Map your different interests', 'Identify overlap areas', 'Start with small experiments'],
+      'timeframe': 'long-term',
+    });
+    
+    return paths.take(4).toList();
+  }
+
+  /// Generate explanations for visualizations to help users understand themselves
+  Future<Map<String, String>> generateVisualizationInsights({
+    required CareerSession session,
+  }) async {
+    if (session.responses.isEmpty) {
+      return _getFallbackVisualizationInsights();
+    }
+
+    if (_apiKey == null) {
+      return _getFallbackVisualizationInsights();
+    }
+
+    try {
+      AppLogger.debug('Generating visualization insights');
+      final stopwatch = Stopwatch()..start();
+
+      final insightPrompt = _buildVisualizationInsightPrompt(session);
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_apiKey',
+        },
+        body: jsonEncode({
+          'model': 'gpt-4o-mini',
+          'messages': [
+            {
+              'role': 'system',
+              'content': _getVisualizationInsightSystemPrompt(),
+            },
+            {
+              'role': 'user',
+              'content': insightPrompt,
+            }
+          ],
+          'max_tokens': 1200,
+          'temperature': 0.6,
+        }),
+      ).timeout(_requestTimeout);
+
+      stopwatch.stop();
+      AppLogger.performance('AI visualization insights', stopwatch.elapsed);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final content = data['choices'][0]['message']['content'];
+        
+        return _parseVisualizationInsights(content);
+      } else {
+        throw Exception('OpenAI API request failed: ${response.statusCode}');
+      }
+    } catch (e, stackTrace) {
+      AppLogger.error('Error generating visualization insights', e, stackTrace);
+      return _getFallbackVisualizationInsights();
+    }
+  }
+
+  /// Build prompt for visualization insights
+  String _buildVisualizationInsightPrompt(CareerSession session) {
+    final domainKeys = ['joy_energy', 'strengths', 'sought_for', 'values_impact', 'life_design'];
+    final domainNames = ['Joy & Energy', 'Strengths', 'Sought For', 'Values & Impact', 'Life Design'];
+    
+    final buffer = StringBuffer();
+    buffer.writeln('VISUALIZATION INSIGHT GENERATION');
+    buffer.writeln('Session ID: ${session.id}');
+    buffer.writeln('');
+    
+    // Domain analysis
+    buffer.writeln('DOMAIN ANALYSIS:');
+    for (int i = 0; i < domainKeys.length; i++) {
+      final key = domainKeys[i];
+      final name = domainNames[i];
+      final responses = session.responses.values
+          .where((r) => r.questionId.startsWith(key))
+          .toList();
+      
+      final responseCount = responses.length;
+      final avgQuality = responses.isEmpty ? 0.0 : 
+          responses.map((r) => r.reflectionQualityScore).reduce((a, b) => a + b) / responses.length;
+      
+      buffer.writeln('$name: $responseCount responses, ${(avgQuality * 100).round()}% reflection quality');
+    }
+    
+    // Theme analysis
+    final allThemes = session.responses.values
+        .expand((r) => r.keyThemes)
+        .toList();
+    final themeFrequency = <String, int>{};
+    for (final theme in allThemes) {
+      themeFrequency[theme] = (themeFrequency[theme] ?? 0) + 1;
+    }
+    final topThemes = themeFrequency.entries
+        .toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+    
+    buffer.writeln('');
+    buffer.writeln('TOP THEMES: ${topThemes.take(5).map((e) => '${e.key}(${e.value})').join(', ')}');
+    buffer.writeln('');
+    buffer.writeln('OVERALL COMPLETION: ${(session.completionPercentage * 100).round()}%');
+    
+    return buffer.toString();
+  }
+
+  /// Get system prompt for visualization insights
+  String _getVisualizationInsightSystemPrompt() {
+    return '''You are an expert career coach specializing in helping people understand their career exploration patterns through data visualization insights.
+
+LANGUAGE REQUIREMENTS:
+- Use Australian English spelling and terminology
+- Write in an encouraging, insightful tone
+- Focus on self-discovery and learning
+
+YOUR ROLE:
+Help users understand what their career exploration data reveals about them personally. Each visualization tells a story about their journey of self-discovery.
+
+INSIGHT APPROACH:
+- Connect patterns to personal growth and self-awareness
+- Explain what the data reveals about their exploration style
+- Highlight strengths and areas for deeper reflection
+- Make insights actionable and encouraging
+- Focus on the journey of self-discovery, not just the data
+
+OUTPUT REQUIREMENTS:
+Return JSON with these specific insights:
+{
+  "radarChart": "Explain what their domain pattern reveals about their exploration style and interests",
+  "wordCloud": "Explain what their recurring themes say about their authentic interests and values",
+  "progressChart": "Explain what their completion pattern reveals about their commitment and reflection style",
+  "qualityChart": "Explain what their reflection quality across domains reveals about their areas of confidence and growth"
+}
+
+Focus on helping users learn about themselves - their patterns, preferences, and authentic interests revealed through their exploration journey.''';
+  }
+
+  /// Parse visualization insights from AI response
+  Map<String, String> _parseVisualizationInsights(String content) {
+    try {
+      final data = jsonDecode(content);
+      if (data is Map) {
+        return {
+          'radarChart': data['radarChart']?.toString() ?? 'Your exploration pattern shows unique insights about your interests.',
+          'wordCloud': data['wordCloud']?.toString() ?? 'Your themes reveal consistent patterns in what energizes you.',
+          'progressChart': data['progressChart']?.toString() ?? 'Your completion journey shows your commitment to self-discovery.',
+          'qualityChart': data['qualityChart']?.toString() ?? 'Your reflection quality shows your areas of confidence and growth.',
+        };
+      }
+    } catch (e) {
+      AppLogger.warning('Failed to parse visualization insights JSON');
+    }
+    
+    return _getFallbackVisualizationInsights();
+  }
+
+  /// Generate fallback visualization insights
+  Map<String, String> _getFallbackVisualizationInsights() {
+    return {
+      'radarChart': 'This radar chart shows your exploration depth across the five career domains. The areas where you\'ve explored most deeply often reflect your natural interests and where you feel most confident reflecting.',
+      'wordCloud': 'These themes emerged from your responses across all domains. The larger themes appear more frequently in your reflections, suggesting they\'re central to how you think about work and career.',
+      'progressChart': 'Your completion pattern reveals your commitment to self-discovery. The more complete your exploration, the richer insights you\'ll gain about your authentic career direction.',
+      'qualityChart': 'This shows the depth of reflection across different domains. Areas with higher quality reflection often indicate topics you\'re passionate about or naturally drawn to explore.',
     };
   }
 

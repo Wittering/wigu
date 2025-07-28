@@ -69,7 +69,7 @@ class _DetailedAssessmentWidgetState extends ConsumerState<DetailedAssessmentWid
     final features = [
       'Five career domains',
       'AI-powered questions',
-      'Progress tracking',
+      'Personalized insights',
     ];
 
     return Column(
@@ -140,6 +140,11 @@ class _DetailedAssessmentWidgetState extends ConsumerState<DetailedAssessmentWid
           
           // Domain preview cards
           _buildDomainPreview(),
+          
+          const SizedBox(height: 32),
+          
+          // Results preview link
+          _buildResultsPreview(),
         ],
       ),
     );
@@ -156,9 +161,6 @@ class _DetailedAssessmentWidgetState extends ConsumerState<DetailedAssessmentWid
             const SizedBox(height: 24),
           ],
           
-          // Progress overview
-          _buildProgressOverview(provider),
-          const SizedBox(height: 24),
           
           // Domain cards
           _buildDomainGrid(provider),
@@ -222,7 +224,7 @@ class _DetailedAssessmentWidgetState extends ConsumerState<DetailedAssessmentWid
               ),
             ),
             child: Text(
-              '${(session.completionPercentage * 100).round()}%',
+              'Active',
               style: TextStyle(
                 color: AppTheme.successGreen,
                 fontSize: 14,
@@ -235,55 +237,6 @@ class _DetailedAssessmentWidgetState extends ConsumerState<DetailedAssessmentWid
     );
   }
 
-  Widget _buildProgressOverview(CareerAssessmentProvider provider) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.successGreen.withOpacity(0.1),
-            AppTheme.successGreen.withOpacity(0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.successGreen.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Assessment Progress',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppTheme.primaryText,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: provider.overallProgress,
-              backgroundColor: AppTheme.mutedTone1.withOpacity(0.3),
-              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.successGreen),
-              minHeight: 8,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '${provider.completedDomains.length} of ${provider.topLineQuestions.length} domains completed',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppTheme.secondaryText,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildDomainGrid(CareerAssessmentProvider provider) {
     // Use the 5 domains from the assessment questions instead of all CareerDomain values
@@ -293,12 +246,12 @@ class _DetailedAssessmentWidgetState extends ConsumerState<DetailedAssessmentWid
       builder: (context, constraints) {
         // Calculate if we can fit all domains in one row
         final availableWidth = constraints.maxWidth;
-        final cardWidth = (availableWidth - (domainKeys.length - 1) * 12) / domainKeys.length; // 12px spacing between cards
+        final cardWidth = (availableWidth - (domainKeys.length - 1) * 8) / domainKeys.length; // 8px spacing between cards (reduced from 12px)
         
-        if (cardWidth > 140) {
-          // Use single row if cards can be reasonably sized
+        if (cardWidth > 60) {
+          // Use single row if cards can be reasonably sized (reduced to 60px minimum)
           return SizedBox(
-            height: 160, // Fixed height for single row
+            height: 100, // Further reduced height to 100px for very compact cards
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: domainKeys.length,
@@ -311,7 +264,7 @@ class _DetailedAssessmentWidgetState extends ConsumerState<DetailedAssessmentWid
                 
                 return Container(
                   width: cardWidth,
-                  margin: EdgeInsets.only(right: index < domainKeys.length - 1 ? 12 : 0),
+                  margin: EdgeInsets.only(right: index < domainKeys.length - 1 ? 8 : 0), // Reduced margin to match spacing calculation
                   child: DomainOverviewCard(
                     domain: domain,
                     isCompleted: isCompleted,
@@ -363,50 +316,138 @@ class _DetailedAssessmentWidgetState extends ConsumerState<DetailedAssessmentWid
       {'key': 'life_design', 'title': 'Life Design', 'icon': '🎨', 'color': AppTheme.mutedTone1},
     ];
 
-    return SizedBox(
-      height: 120,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: domains.length,
-        itemBuilder: (context, index) {
-          final domain = domains[index];
-          return Container(
-            width: 160,
-            margin: EdgeInsets.only(right: index < domains.length - 1 ? 16 : 0),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: (domain['color'] as Color).withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: (domain['color'] as Color).withOpacity(0.2),
-              ),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  domain['icon'] as String,
-                  style: const TextStyle(fontSize: 24),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  domain['title'] as String,
-                  style: TextStyle(
-                    color: AppTheme.primaryText,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Calculate if we can fit all domains in one row
+        final availableWidth = constraints.maxWidth;
+        final cardWidth = (availableWidth - (domains.length - 1) * 8) / domains.length; // 8px spacing between cards
+        
+        return SizedBox(
+          height: 100, // Reduced to match the domain grid height
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: domains.length,
+            itemBuilder: (context, index) {
+              final domain = domains[index];
+              return Container(
+                width: cardWidth.clamp(60.0, 100.0), // Minimum 60px, maximum 100px
+                margin: EdgeInsets.only(right: index < domains.length - 1 ? 8 : 0), // Reduced margin
+                padding: const EdgeInsets.all(8), // Further reduced padding to match cards
+                decoration: BoxDecoration(
+                  color: (domain['color'] as Color).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: (domain['color'] as Color).withOpacity(0.2),
                   ),
-                  textAlign: TextAlign.center,
                 ),
-              ],
-            ),
-          );
-        },
-      ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      domain['icon'] as String,
+                      style: const TextStyle(fontSize: 16), // Further reduced icon size
+                    ),
+                    const SizedBox(height: 3), // Further reduced spacing
+                    Text(
+                      domain['title'] as String,
+                      style: TextStyle(
+                        color: AppTheme.primaryText,
+                        fontSize: 9, // Further reduced text size
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
     )
         .animate(delay: 800.ms)
         .fadeIn(duration: 800.ms)
         .slideY(begin: 0.2, curve: Curves.easeOut);
+  }
+
+  Widget _buildResultsPreview() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.successGreen.withOpacity(0.08),
+            AppTheme.successGreen.withOpacity(0.03),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.successGreen.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.insights_outlined,
+                color: AppTheme.successGreen,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'What you\'ll discover',
+                style: TextStyle(
+                  color: AppTheme.primaryText,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'After completing your assessment, you\'ll receive personalised insights about your career direction, including key patterns, strengths, and recommended next steps.',
+            style: TextStyle(
+              color: AppTheme.secondaryText.withOpacity(0.9),
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: () => _previewResults(),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Preview sample results',
+                  style: TextStyle(
+                    color: AppTheme.successGreen,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.arrow_forward,
+                  color: AppTheme.successGreen,
+                  size: 16,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    )
+        .animate(delay: 1000.ms)
+        .fadeIn(duration: 600.ms)
+        .slideY(begin: 0.1, curve: Curves.easeOut);
   }
 
   CareerDomain _getDomainFromKey(String domainKey) {
@@ -489,6 +530,11 @@ class _DetailedAssessmentWidgetState extends ConsumerState<DetailedAssessmentWid
       context: context,
       builder: (context) => const SessionSetupDialog(),
     );
+  }
+
+  void _previewResults() {
+    // Navigate to results with a sample session ID
+    Navigator.of(context).pushNamed('/results/sample');
   }
 
   String _formatDuration(Duration duration) {

@@ -19,13 +19,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     _navigateToHome();
   }
 
-  /// Navigate to home screen after a brief pause
+  /// Navigate to assessment screen after a brief pause
   Future<void> _navigateToHome() async {
     // Allow the splash screen to be visible for a moment
     await Future.delayed(const Duration(milliseconds: 2500));
     
     if (mounted) {
-      Navigator.of(context).pushReplacementNamed('/home');
+      Navigator.of(context).pushReplacementNamed('/assessment');
     }
   }
 
@@ -66,11 +66,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 
                 // App name
                 Text(
-                  'Wigu',
+                  'When I grow up...',
                   style: Theme.of(context).textTheme.displayMedium?.copyWith(
                     color: AppTheme.primaryText,
                     fontWeight: FontWeight.w300,
-                    letterSpacing: 2.0,
+                    letterSpacing: 1.0,
                   ),
                 )
                     .animate(delay: 400.ms)
@@ -96,7 +96,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 
                 // Tagline
                 Text(
-                  'A reflective tool for career\nexploration and development',
+                  'What do you want to be\nwhen you grow up?',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: AppTheme.mutedText,

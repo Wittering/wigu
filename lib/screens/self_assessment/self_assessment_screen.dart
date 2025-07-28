@@ -4,7 +4,6 @@ import '../../providers/career_assessment_provider.dart';
 import '../../models/career_session.dart';
 import '../../widgets/assessment/domain_overview_card.dart';
 import '../../widgets/assessment/question_flow_screen.dart';
-import '../../widgets/assessment/progress_indicator_widget.dart';
 import '../../widgets/assessment/session_setup_dialog.dart';
 import '../../utils/theme.dart';
 
@@ -153,11 +152,6 @@ class _SelfAssessmentScreenState extends ConsumerState<SelfAssessmentScreen>
                 ),
               ),
               
-              // Progress indicator if session exists
-              if (provider.currentSession != null) ...[
-                const SizedBox(height: 24),
-                ProgressIndicatorWidget(provider: provider),
-              ],
             ],
           ),
         );
@@ -420,17 +414,19 @@ class _SelfAssessmentScreenState extends ConsumerState<SelfAssessmentScreen>
           // Domain cards grid
           LayoutBuilder(
             builder: (context, constraints) {
-              final crossAxisCount = constraints.maxWidth > 1200 ? 3 : 
-                                   constraints.maxWidth > 800 ? 2 : 1;
-              final childAspectRatio = constraints.maxWidth > 800 ? 1.2 : 0.9;
+              // Force single row on desktop with much smaller aspect ratio
+              final crossAxisCount = constraints.maxWidth > 1000 ? 5 : 
+                                   constraints.maxWidth > 600 ? 3 : 2;
+              final childAspectRatio = constraints.maxWidth > 1000 ? 0.8 : 
+                                     constraints.maxWidth > 600 ? 0.9 : 0.8;
               
               return GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: 24,
-                  mainAxisSpacing: 24,
+                  crossAxisSpacing: 12, // Reduced from 24 to 12
+                  mainAxisSpacing: 12, // Reduced from 24 to 12
                   childAspectRatio: childAspectRatio,
                 ),
                 itemCount: domains.length,
@@ -455,8 +451,8 @@ class _SelfAssessmentScreenState extends ConsumerState<SelfAssessmentScreen>
             },
           ),
           
-          // Completion message
-          if (provider.overallProgress >= 1.0) ...[
+          // Completion message available after exploring domains
+          if (provider.completedDomains.isNotEmpty) ...[
             const SizedBox(height: 32),
             _buildCompletionMessage(provider),
           ],
@@ -507,7 +503,7 @@ class _SelfAssessmentScreenState extends ConsumerState<SelfAssessmentScreen>
             ),
           ),
           Text(
-            '${(session.completionPercentage * 100).round()}% complete',
+            'Assessment in progress',
             style: TextStyle(
               color: AppTheme.successGreen,
               fontSize: 16,

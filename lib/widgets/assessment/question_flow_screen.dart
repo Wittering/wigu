@@ -198,17 +198,8 @@ class _QuestionFlowScreenState extends ConsumerState<QuestionFlowScreen>
       return _buildErrorState('Question not found');
     }
 
-    final currentQuestions = [mainQuestion['question']!];
-    currentQuestions.addAll(provider.currentProbes);
-    
-    // Update questions list if it changed
-    if (currentQuestions.length != _allQuestions.length) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        setState(() {
-          _allQuestions = currentQuestions;
-        });
-      });
-    }
+    // Questions are managed in _handleResponse() to avoid race conditions
+    // This section now just displays the current questions without modifying them
 
     if (_allQuestions.isEmpty) {
       return _buildErrorState('No questions available');
@@ -321,15 +312,22 @@ class _QuestionFlowScreenState extends ConsumerState<QuestionFlowScreen>
       // Wait for AI to generate more probes - don't auto-complete
       await Future.delayed(const Duration(seconds: 2)); // Give AI time to think
       
-      final updatedQuestions = [provider.topLineQuestions[widget.domainKey]!['question']!];
-      updatedQuestions.addAll(provider.currentProbes);
+      // Only get the new probe questions - main question is already in _allQuestions
+      final allProviderQuestions = List<String>.from(provider.currentProbes);
       
-      if (updatedQuestions.length > _allQuestions.length) {
-        // More probes were added, continue with them
+      // Only add truly new questions to avoid duplicates
+      final newQuestions = <String>[];
+      for (final question in allProviderQuestions) {
+        if (!_allQuestions.contains(question)) {
+          newQuestions.add(question);
+        }
+      }
+      
+      if (newQuestions.isNotEmpty) {
         setState(() {
-          _allQuestions = updatedQuestions;
+          _allQuestions.addAll(newQuestions);
         });
-        // Move to the new question
+        // Move to the first new question
         await _pageController.nextPage(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
@@ -397,15 +395,26 @@ class _QuestionFlowScreenState extends ConsumerState<QuestionFlowScreen>
   }
 
   void _requestMoreQuestions(CareerAssessmentProvider provider) {
-    // Add a generic probe to encourage more exploration
-    setState(() {
-      _allQuestions.add("Is there anything else about this topic you'd like to explore or reflect on?");
-    });
-    // Move to the new question
-    _pageController.nextPage(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
+    // Check if we already have this generic question to avoid duplication
+    const genericQuestion = "Is there anything else about this topic you'd like to explore or reflect on?";
+    
+    if (!_allQuestions.contains(genericQuestion)) {
+      setState(() {
+        _allQuestions.add(genericQuestion);
+      });
+      // Move to the new question
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      // If we already have the generic question, just navigate to the last question
+      _pageController.animateToPage(
+        _allQuestions.length - 1,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   void _finishDomain(CareerAssessmentProvider provider) {

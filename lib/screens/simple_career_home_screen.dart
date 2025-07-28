@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../utils/theme.dart';
 import '../widgets/detailed_assessment_widget.dart';
+import '../providers/career_provider.dart';
+import '../screens/advisor/advisor_management_screen.dart';
 
 /// Simplified main home screen for the Career Insight Engine
 /// Features a simple "What do you want to be when you grow up?" entry point
@@ -70,11 +72,11 @@ class _SimpleCareerHomeScreenState extends ConsumerState<SimpleCareerHomeScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Wigu',
+                      'When I grow up...',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         color: AppTheme.primaryText,
                         fontWeight: FontWeight.w300,
-                        letterSpacing: 1.5,
+                        letterSpacing: 1.0,
                       ),
                     )
                         .animate(delay: 200.ms)
@@ -98,6 +100,13 @@ class _SimpleCareerHomeScreenState extends ConsumerState<SimpleCareerHomeScreen>
               ),
               
               IconButton(
+                icon: const Icon(Icons.group),
+                onPressed: () => _navigateToAdvisorManagement(context),
+                tooltip: 'Advisor Feedback',
+                color: AppTheme.accentTeal,
+              ),
+              
+              IconButton(
                 icon: const Icon(Icons.settings_outlined),
                 onPressed: () => _showSettingsDialog(context),
                 tooltip: 'Settings',
@@ -112,6 +121,59 @@ class _SimpleCareerHomeScreenState extends ConsumerState<SimpleCareerHomeScreen>
 
   Widget _buildAssessmentTab() {
     return const DetailedAssessmentWidget();
+  }
+
+  void _navigateToAdvisorManagement(BuildContext context) {
+    final activeSession = ref.read(activeCareerSessionProvider);
+    activeSession.whenData((session) {
+      if (session != null) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => AdvisorManagementScreen(sessionId: session.id),
+          ),
+        );
+      } else {
+        // Show dialog to create session first
+        _showCreateSessionDialog(context);
+      }
+    });
+  }
+
+  void _showCreateSessionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.mutedTone1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text(
+          'Start Career Exploration',
+          style: TextStyle(color: AppTheme.primaryText),
+        ),
+        content: Text(
+          'To invite advisors, you need to start a career exploration session first. Complete at least one domain of the self-assessment to begin collecting advisor feedback.',
+          style: TextStyle(color: AppTheme.secondaryText),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: AppTheme.mutedText),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Navigate to assessment
+              Navigator.of(context).pushNamed('/assessment');
+            },
+            child: const Text('Start Assessment'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSettingsDialog(BuildContext context) {

@@ -80,12 +80,12 @@ class _ResponseInputWidgetState extends State<ResponseInputWidget>
       opacity: _fadeAnimation,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.02),
+          color: const Color(0xFFF8F8F8), // Off-white background to match text field
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: _isFocused 
                 ? widget.domainColor.withOpacity(0.6)
-                : Colors.white.withOpacity(0.08),
+                : Colors.black.withOpacity(0.15),
             width: 1,
           ),
         ),
@@ -145,8 +145,15 @@ class _ResponseInputWidgetState extends State<ResponseInputWidget>
   }
 
   Widget _buildTextInput() {
-    return Padding(
+    return Container(
       padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF8F8F8), // Match the off-white background
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(12),
+          topRight: Radius.circular(12),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -155,20 +162,24 @@ class _ResponseInputWidgetState extends State<ResponseInputWidget>
             focusNode: _focusNode,
             maxLines: 6,
             minLines: 3,
+            textAlign: TextAlign.center, // Center text horizontally
+            textAlignVertical: TextAlignVertical.center, // Center text vertically
             style: const TextStyle(
-              color: Colors.white,
+              color: Colors.black,
               fontSize: 16,
               height: 1.5,
             ),
             decoration: InputDecoration(
               hintText: _getHintText(),
               hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.4),
+                color: Colors.black.withOpacity(0.5),
                 fontSize: 16,
                 height: 1.5,
               ),
               border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
+              contentPadding: const EdgeInsets.symmetric(vertical: 16), // Add vertical padding for better centering
+              filled: true,
+              fillColor: const Color(0xFFF8F8F8), // Off-white background
             ),
             textCapitalization: TextCapitalization.sentences,
             onSubmitted: (_) => _handleSubmit(),

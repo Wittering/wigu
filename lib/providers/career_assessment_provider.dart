@@ -4,7 +4,7 @@ import '../models/career_session.dart';
 import '../models/career_response.dart';
 import '../models/career_insight.dart';
 import '../services/career_ai_service.dart';
-import '../services/career_persistence_service.dart';
+import '../services/local_data_service.dart';
 import '../utils/logger.dart';
 import '../utils/error_handler.dart';
 
@@ -12,7 +12,7 @@ import '../utils/error_handler.dart';
 /// Handles the 5 top-line questions, AI probing, and session management
 class CareerAssessmentProvider extends ChangeNotifier {
   final CareerAIService _aiService;
-  final CareerPersistenceService _persistenceService;
+  final LocalDataService _dataService;
   
   // Current session state
   CareerSession? _currentSession;
@@ -32,9 +32,9 @@ class CareerAssessmentProvider extends ChangeNotifier {
   
   CareerAssessmentProvider({
     CareerAIService? aiService,
-    CareerPersistenceService? persistenceService,
+    LocalDataService? dataService,
   }) : _aiService = aiService ?? CareerAIService(),
-        _persistenceService = persistenceService ?? CareerPersistenceService() {
+        _dataService = dataService ?? LocalDataService() {
     _initialize();
   }
   
@@ -77,6 +77,12 @@ class CareerAssessmentProvider extends ChangeNotifier {
   Future<void> _initialize() async {
     try {
       AppLogger.info('Initializing CareerAssessmentProvider');
+      
+      // Initialize data service if not already initialized
+      if (!_dataService.isInitialized) {
+        await _dataService.initialize();
+      }
+      
       await _loadExistingSession();
     } catch (e, stackTrace) {
       AppLogger.error('Failed to initialize CareerAssessmentProvider', e, stackTrace);
@@ -87,7 +93,7 @@ class CareerAssessmentProvider extends ChangeNotifier {
   /// Load existing session if available
   Future<void> _loadExistingSession() async {
     try {
-      final sessions = await _persistenceService.getAllSessions();
+      final sessions = await _dataService.getAllCareerSessions();
       if (sessions.isNotEmpty) {
         // Get the most recent session
         final session = sessions.reduce((a, b) => 
@@ -137,7 +143,7 @@ class CareerAssessmentProvider extends ChangeNotifier {
         preferredExplorationType: explorationType,
       );
       
-      await _persistenceService.saveSession(session);
+      await _dataService.saveCareerSession(session);
       _currentSession = session;
       
       // Reset state
@@ -164,7 +170,7 @@ class CareerAssessmentProvider extends ChangeNotifier {
       _setLoading(true);
       _clearError();
       
-      final session = await _persistenceService.getSession(sessionId);
+      final session = await _dataService.getCareerSession(sessionId);
       if (session != null) {
         _currentSession = session;
         _syncStateFromSession();
@@ -235,7 +241,7 @@ class CareerAssessmentProvider extends ChangeNotifier {
         lastModified: DateTime.now(),
       );
       
-      await _persistenceService.saveSession(_currentSession!);
+      await _dataService.saveCareerSession(_currentSession!);
       
       AppLogger.info('Submitted response for question: $_currentQuestionId');
       
@@ -251,7 +257,7 @@ class CareerAssessmentProvider extends ChangeNotifier {
     }
   }
   
-  /// Generate AI probes if needed - let user control when to stop
+  /// Generate AI probes if needed and extract ingredients - let user control when to stop
   Future<void> _generateProbesIfNeeded(CareerResponse response) async {
     if (_currentQuestionId == null) return;
     
@@ -262,6 +268,19 @@ class CareerAssessmentProvider extends ChangeNotifier {
       
       final questionData = topLineQuestions[_currentQuestionId!];
       if (questionData == null) return;
+      
+      // Extract ingredients from the response (as per specification)
+      final ingredients = await _aiService.extractIngredients(
+        questionId: questionData['id']!,
+        questionText: questionData['question']!,
+        userResponse: response.response,
+        domain: questionData['domain']!,
+      );
+      
+      if (ingredients.isNotEmpty) {
+        AppLogger.info('Extracted ingredients for ${questionData['domain']}: ${ingredients.join(', ')}');
+        // TODO: Store ingredients when response model is updated to include them
+      }
       
       final probes = await _aiService.generateProbingQuestions(
         questionId: questionData['id']!,
@@ -280,7 +299,7 @@ class CareerAssessmentProvider extends ChangeNotifier {
         AppLogger.info('No additional probes generated for $_currentQuestionId - user can continue or finish');
       }
     } catch (e, stackTrace) {
-      AppLogger.error('Failed to generate probes', e, stackTrace);
+      AppLogger.error('Failed to generate probes or extract ingredients', e, stackTrace);
       // Even if AI fails, don't auto-complete - let user continue their exploration
       AppLogger.info('AI probe generation failed, but continuing with user-driven exploration');
     } finally {
@@ -317,7 +336,7 @@ class CareerAssessmentProvider extends ChangeNotifier {
         lastModified: DateTime.now(),
       );
       
-      await _persistenceService.saveSession(_currentSession!);
+      await _dataService.saveCareerSession(_currentSession!);
       
       AppLogger.info('Submitted probe response for: $_currentQuestionId');
       
@@ -354,7 +373,7 @@ class CareerAssessmentProvider extends ChangeNotifier {
         lastModified: DateTime.now(),
       );
       
-      await _persistenceService.saveSession(_currentSession!);
+      await _dataService.saveCareerSession(_currentSession!);
       
       AppLogger.info('Completed domain: $domainKey');
       
@@ -387,7 +406,7 @@ class CareerAssessmentProvider extends ChangeNotifier {
         lastModified: DateTime.now(),
       );
       
-      await _persistenceService.saveSession(_currentSession!);
+      await _dataService.saveCareerSession(_currentSession!);
       
       AppLogger.info('Generated ${insights.length} final insights');
     } catch (e, stackTrace) {
@@ -434,7 +453,7 @@ class CareerAssessmentProvider extends ChangeNotifier {
         lastModified: DateTime.now(),
       );
       
-      await _persistenceService.saveSession(_currentSession!);
+      await _dataService.saveCareerSession(_currentSession!);
       
       AppLogger.info('Reset domain: $_currentQuestionId');
       notifyListeners();
@@ -454,7 +473,7 @@ class CareerAssessmentProvider extends ChangeNotifier {
       _setLoading(true);
       _clearError();
       
-      await _persistenceService.deleteSession(_currentSession!.id);
+      await _dataService.deleteCareerSession(_currentSession!.id);
       
       _currentSession = null;
       _currentDomain = null;
@@ -532,6 +551,6 @@ class CareerAssessmentProvider extends ChangeNotifier {
 
 // Riverpod provider for CareerAssessmentProvider
 final careerAssessmentProvider = ChangeNotifierProvider<CareerAssessmentProvider>((ref) {
-  final persistenceService = ref.read(careerPersistenceServiceProvider);
-  return CareerAssessmentProvider(persistenceService: persistenceService);
+  final dataService = ref.read(localDataServiceProvider);
+  return CareerAssessmentProvider(dataService: dataService);
 });

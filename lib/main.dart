@@ -1,12 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
-import 'services/career_persistence_service.dart';
-import 'screens/simple_career_home_screen.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'services/local_data_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/self_assessment/self_assessment_screen.dart';
 import 'screens/career_results_screen.dart';
+import 'screens/advisor/advisor_response_router.dart';
+import 'screens/advisor/advisor_management_screen.dart';
 import 'utils/theme.dart';
+
+// Import all generated Hive adapters
+import 'models/career_session.dart';
+import 'models/career_response.dart';
+import 'models/career_insight.dart';
+import 'models/advisor_invitation.dart';
+import 'models/advisor_response.dart';
+import 'models/advisor_rating.dart';
+import 'models/career_synthesis.dart';
+import 'models/career_experiment.dart';
+import 'models/experiment_result.dart';
+import 'models/career_progress.dart';
+import 'models/completion_status.dart';
+import 'models/five_insights_model.dart';
+import 'models/insight_analysis.dart';
+import 'models/career_report.dart';
+import 'models/report_visualization.dart';
 
 /// Entry point for the Career Insight Engine
 /// A reflective tool for career exploration and development
@@ -26,15 +45,19 @@ void main() async {
   );
   
   try {
-    // Initialise career persistence service
-    final careerPersistenceService = CareerPersistenceService();
-    await careerPersistenceService.initialise();
-    logger.i('Career Insight Engine initialised successfully');
+    // Initialize Hive and register all adapters
+    await _initializeHive(logger);
+    
+    // Initialize local data service
+    final localDataService = LocalDataService();
+    await localDataService.initialize();
+    
+    logger.i('Career Insight Engine with local persistence initialized successfully');
     
     runApp(
       ProviderScope(
         overrides: [
-          careerPersistenceServiceProvider.overrideWithValue(careerPersistenceService),
+          localDataServiceProvider.overrideWithValue(localDataService),
         ],
         child: const WiguCareerApp(),
       ),
@@ -47,6 +70,279 @@ void main() async {
         child: const WiguCareerApp(),
       ),
     );
+  }
+}
+
+/// Initialize Hive with all required adapters
+Future<void> _initializeHive(Logger logger) async {
+  logger.i('Initializing Hive database...');
+  
+  // Initialize Hive for Flutter
+  await Hive.initFlutter();
+  
+  // Register all model adapters
+  _registerHiveAdapters(logger);
+  
+  logger.i('Hive database initialized with all adapters registered');
+}
+
+/// Register all Hive type adapters for the career assessment models
+void _registerHiveAdapters(Logger logger) {
+  try {
+    // Core career models
+    if (!Hive.isAdapterRegistered(10)) {
+      Hive.registerAdapter(CareerSessionAdapter());
+    }
+    if (!Hive.isAdapterRegistered(11)) {
+      Hive.registerAdapter(CareerResponseAdapter());
+    }
+    if (!Hive.isAdapterRegistered(12)) {
+      Hive.registerAdapter(CareerInsightAdapter());
+    }
+    if (!Hive.isAdapterRegistered(13)) {
+      Hive.registerAdapter(CareerDomainAdapter());
+    }
+    if (!Hive.isAdapterRegistered(14)) {
+      Hive.registerAdapter(ExplorationTypeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(15)) {
+      Hive.registerAdapter(InsightTypeAdapter());
+    }
+    
+    // Advisor models
+    if (!Hive.isAdapterRegistered(20)) {
+      Hive.registerAdapter(AdvisorInvitationAdapter());
+    }
+    if (!Hive.isAdapterRegistered(21)) {
+      Hive.registerAdapter(AdvisorRelationshipAdapter());
+    }
+    if (!Hive.isAdapterRegistered(22)) {
+      Hive.registerAdapter(InvitationStatusAdapter());
+    }
+    if (!Hive.isAdapterRegistered(23)) {
+      Hive.registerAdapter(AdvisorResponseAdapter());
+    }
+    if (!Hive.isAdapterRegistered(24)) {
+      Hive.registerAdapter(AdvisorObservationPeriodAdapter());
+    }
+    if (!Hive.isAdapterRegistered(25)) {
+      Hive.registerAdapter(AdvisorConfidenceContextAdapter());
+    }
+    if (!Hive.isAdapterRegistered(26)) {
+      Hive.registerAdapter(AdvisorRatingAdapter());
+    }
+    if (!Hive.isAdapterRegistered(27)) {
+      Hive.registerAdapter(AdvisorStrengthAreaAdapter());
+    }
+    if (!Hive.isAdapterRegistered(28)) {
+      Hive.registerAdapter(AdvisorResponseTimelinessAdapter());
+    }
+    
+    // Career synthesis models
+    if (!Hive.isAdapterRegistered(30)) {
+      Hive.registerAdapter(CareerSynthesisAdapter());
+    }
+    if (!Hive.isAdapterRegistered(31)) {
+      Hive.registerAdapter(SynthesisInsightAdapter());
+    }
+    if (!Hive.isAdapterRegistered(32)) {
+      Hive.registerAdapter(SynthesisCategoryAdapter());
+    }
+    if (!Hive.isAdapterRegistered(33)) {
+      Hive.registerAdapter(SynthesisConfidenceAdapter());
+    }
+    
+    // Insight analysis models
+    if (!Hive.isAdapterRegistered(34)) {
+      Hive.registerAdapter(InsightAnalysisAdapter());
+    }
+    if (!Hive.isAdapterRegistered(35)) {
+      Hive.registerAdapter(InsightPatternAdapter());
+    }
+    if (!Hive.isAdapterRegistered(36)) {
+      Hive.registerAdapter(InsightCorrelationAdapter());
+    }
+    if (!Hive.isAdapterRegistered(37)) {
+      Hive.registerAdapter(InsightTrendAnalysisAdapter());
+    }
+    if (!Hive.isAdapterRegistered(38)) {
+      Hive.registerAdapter(InsightTypeStatsAdapter());
+    }
+    if (!Hive.isAdapterRegistered(39)) {
+      Hive.registerAdapter(PatternTypeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(40)) {
+      Hive.registerAdapter(CorrelationTypeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(41)) {
+      Hive.registerAdapter(QualityTrendAdapter());
+    }
+    if (!Hive.isAdapterRegistered(42)) {
+      Hive.registerAdapter(DiversityTrendAdapter());
+    }
+    
+    // Career experiment models
+    if (!Hive.isAdapterRegistered(50)) {
+      Hive.registerAdapter(CareerExperimentAdapter());
+    }
+    if (!Hive.isAdapterRegistered(51)) {
+      Hive.registerAdapter(ExperimentMetricAdapter());
+    }
+    if (!Hive.isAdapterRegistered(52)) {
+      Hive.registerAdapter(ExperimentTypeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(53)) {
+      Hive.registerAdapter(ExperimentStatusAdapter());
+    }
+    if (!Hive.isAdapterRegistered(54)) {
+      Hive.registerAdapter(ExperimentScopeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(55)) {
+      Hive.registerAdapter(ExperimentPriorityAdapter());
+    }
+    if (!Hive.isAdapterRegistered(56)) {
+      Hive.registerAdapter(ExperimentComplexityAdapter());
+    }
+    if (!Hive.isAdapterRegistered(57)) {
+      Hive.registerAdapter(MetricTypeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(58)) {
+      Hive.registerAdapter(MetricFrequencyAdapter());
+    }
+    
+    // Experiment result models
+    if (!Hive.isAdapterRegistered(60)) {
+      Hive.registerAdapter(ExperimentResultAdapter());
+    }
+    if (!Hive.isAdapterRegistered(61)) {
+      Hive.registerAdapter(MetricResultAdapter());
+    }
+    if (!Hive.isAdapterRegistered(62)) {
+      Hive.registerAdapter(ExperimentOutcomeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(63)) {
+      Hive.registerAdapter(ResultConfidenceAdapter());
+    }
+    if (!Hive.isAdapterRegistered(64)) {
+      Hive.registerAdapter(ResultRatingAdapter());
+    }
+    if (!Hive.isAdapterRegistered(65)) {
+      Hive.registerAdapter(MetricResultTypeAdapter());
+    }
+    
+    // Career report models
+    if (!Hive.isAdapterRegistered(70)) {
+      Hive.registerAdapter(CareerReportAdapter());
+    }
+    if (!Hive.isAdapterRegistered(71)) {
+      Hive.registerAdapter(ReportSectionAdapter());
+    }
+    if (!Hive.isAdapterRegistered(72)) {
+      Hive.registerAdapter(ReportTypeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(73)) {
+      Hive.registerAdapter(ReportFormatAdapter());
+    }
+    if (!Hive.isAdapterRegistered(74)) {
+      Hive.registerAdapter(SectionTypeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(75)) {
+      Hive.registerAdapter(ReportConfidenceAdapter());
+    }
+    
+    // Report visualization models
+    if (!Hive.isAdapterRegistered(80)) {
+      Hive.registerAdapter(ReportVisualizationAdapter());
+    }
+    if (!Hive.isAdapterRegistered(81)) {
+      Hive.registerAdapter(VisualizationConfigAdapter());
+    }
+    if (!Hive.isAdapterRegistered(82)) {
+      Hive.registerAdapter(VisualizationSizeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(83)) {
+      Hive.registerAdapter(VisualizationTypeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(84)) {
+      Hive.registerAdapter(SizePresetAdapter());
+    }
+    
+    // Five insights models
+    if (!Hive.isAdapterRegistered(90)) {
+      Hive.registerAdapter(FiveInsightsModelAdapter());
+    }
+    if (!Hive.isAdapterRegistered(91)) {
+      Hive.registerAdapter(EnergisrengStrengthAdapter());
+    }
+    if (!Hive.isAdapterRegistered(92)) {
+      Hive.registerAdapter(HiddenStrengthAdapter());
+    }
+    if (!Hive.isAdapterRegistered(93)) {
+      Hive.registerAdapter(OverusedTalentAdapter());
+    }
+    if (!Hive.isAdapterRegistered(94)) {
+      Hive.registerAdapter(AspirationalStrengthAdapter());
+    }
+    if (!Hive.isAdapterRegistered(95)) {
+      Hive.registerAdapter(MisalignedEnergyAdapter());
+    }
+    if (!Hive.isAdapterRegistered(96)) {
+      Hive.registerAdapter(InsightCategoryAdapter());
+    }
+    
+    // Career progress models
+    if (!Hive.isAdapterRegistered(100)) {
+      Hive.registerAdapter(CareerProgressAdapter());
+    }
+    if (!Hive.isAdapterRegistered(101)) {
+      Hive.registerAdapter(DomainProgressAdapter());
+    }
+    if (!Hive.isAdapterRegistered(102)) {
+      Hive.registerAdapter(ProgressMilestoneAdapter());
+    }
+    if (!Hive.isAdapterRegistered(103)) {
+      Hive.registerAdapter(ProgressPhaseAdapter());
+    }
+    if (!Hive.isAdapterRegistered(104)) {
+      Hive.registerAdapter(ProgressQualityAdapter());
+    }
+    if (!Hive.isAdapterRegistered(105)) {
+      Hive.registerAdapter(DomainEngagementAdapter());
+    }
+    if (!Hive.isAdapterRegistered(106)) {
+      Hive.registerAdapter(MilestoneTypeAdapter());
+    }
+    if (!Hive.isAdapterRegistered(107)) {
+      Hive.registerAdapter(MilestonePriorityAdapter());
+    }
+    
+    // Completion status models
+    if (!Hive.isAdapterRegistered(110)) {
+      Hive.registerAdapter(CompletionStatusAdapter());
+    }
+    if (!Hive.isAdapterRegistered(111)) {
+      Hive.registerAdapter(CompletionItemAdapter());
+    }
+    if (!Hive.isAdapterRegistered(112)) {
+      Hive.registerAdapter(CategoryStatusAdapter());
+    }
+    if (!Hive.isAdapterRegistered(113)) {
+      Hive.registerAdapter(CompletionCategoryAdapter());
+    }
+    if (!Hive.isAdapterRegistered(114)) {
+      Hive.registerAdapter(ItemPriorityAdapter());
+    }
+    if (!Hive.isAdapterRegistered(115)) {
+      Hive.registerAdapter(CompletionLevelAdapter());
+    }
+    if (!Hive.isAdapterRegistered(116)) {
+      Hive.registerAdapter(UserReadinessAdapter());
+    }
+    
+    logger.i('All Hive adapters registered successfully');
+  } catch (e, stackTrace) {
+    logger.e('Failed to register Hive adapters', error: e, stackTrace: stackTrace);
+    rethrow;
   }
 }
 
@@ -67,7 +363,6 @@ class WiguCareerApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),
-        '/home': (context) => const SimpleCareerHomeScreen(),
         '/assessment': (context) => const SelfAssessmentScreen(),
       },
       onGenerateRoute: (settings) {
@@ -77,6 +372,22 @@ class WiguCareerApp extends StatelessWidget {
             builder: (context) => CareerResultsScreen(sessionId: sessionId),
           );
         }
+        
+        // Handle advisor response URLs
+        if (settings.name?.startsWith('/advisor-response/') == true) {
+          return MaterialPageRoute(
+            builder: (context) => AdvisorResponseRouter.fromPath(settings.name!),
+          );
+        }
+        
+        // Handle advisor management URLs
+        if (settings.name?.startsWith('/advisors/') == true) {
+          final sessionId = settings.name!.substring('/advisors/'.length);
+          return MaterialPageRoute(
+            builder: (context) => AdvisorManagementScreen(sessionId: sessionId),
+          );
+        }
+        
         return null;
       },
       

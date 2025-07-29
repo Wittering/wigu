@@ -22,13 +22,7 @@ fi
 
 # Check for uncommitted changes
 if ! git diff-index --quiet HEAD --; then
-    echo -e "${YELLOW}⚠️  Warning: You have uncommitted changes${NC}"
-    read -p "Do you want to continue? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo -e "${RED}❌ Deployment cancelled${NC}"
-        exit 1
-    fi
+    echo -e "${YELLOW}⚠️  Warning: You have uncommitted changes. Continuing deployment.${NC}"
 fi
 
 # Clean previous builds

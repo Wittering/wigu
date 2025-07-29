@@ -166,16 +166,19 @@ echo -e "${GREEN}✅ Successfully pushed to remote repository${NC}"
 # Get repository info for GitHub Pages URL
 REPO_URL=$(git config --get remote.origin.url)
 if [[ $REPO_URL == git@github.com:* ]]; then
-    GITHUB_URL=$(echo $REPO_URL | sed 's|git@github.com:|https://github.com/|' | sed 's|.git||')
+    GITHUB_USER=$(echo $REPO_URL | sed 's|git@github.com:||' | sed 's|/.*||' | tr '[:upper:]' '[:lower:]')
+    REPO_NAME=$(echo $REPO_URL | sed 's|.*/||' | sed 's|.git||')
 elif [[ $REPO_URL == https://github.com/* ]]; then
-    GITHUB_URL=$(echo $REPO_URL | sed 's|.git||')
+    GITHUB_USER=$(echo $REPO_URL | sed 's|https://github.com/||' | sed 's|/.*||' | tr '[:upper:]' '[:lower:]')
+    REPO_NAME=$(echo $REPO_URL | sed 's|.*/||' | sed 's|.git||')
 else
-    GITHUB_URL="your-repository"
+    GITHUB_USER="your-username"
+    REPO_NAME="your-repo"
 fi
 
 echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
 echo -e "${BLUE}📍 Your app will be available at:${NC}"
-echo -e "${GREEN}   ${GITHUB_URL/https:\/\/github.com\//https://}$(basename $(git rev-parse --show-toplevel)).github.io/wigu/${NC}"
+echo -e "${GREEN}   https://${GITHUB_USER}.github.io/${REPO_NAME}/${NC}"
 echo ""
 echo -e "${YELLOW}📝 Next steps:${NC}"
 echo -e "   1. Go to your GitHub repository settings"

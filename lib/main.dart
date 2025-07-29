@@ -10,6 +10,9 @@ import 'screens/advisor/advisor_response_router.dart';
 import 'screens/advisor/advisor_management_screen.dart';
 import 'utils/theme.dart';
 
+// Platform imports
+import 'package:flutter/foundation.dart';
+
 // Import all generated Hive adapters
 import 'models/career_session.dart';
 import 'models/career_response.dart';
@@ -64,10 +67,71 @@ void main() async {
     );
   } catch (e, stackTrace) {
     logger.e('Failed to initialise Career Insight Engine', error: e, stackTrace: stackTrace);
-    // Run with basic configuration if initialisation fails
+    
+    // Show detailed error for debugging
     runApp(
-      ProviderScope(
-        child: const WiguCareerApp(),
+      MaterialApp(
+        title: 'Career Assessment - Initialization Error',
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+        ),
+        home: Scaffold(
+          appBar: AppBar(
+            title: Text('When I grow up...'),
+            backgroundColor: Colors.blue,
+          ),
+          body: Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.warning, size: 64, color: Colors.orange),
+                  SizedBox(height: 20),
+                  Text(
+                    'Initialization Error',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'The app encountered an error during startup. This may be due to browser storage restrictions.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  SizedBox(height: 20),
+                  Text(
+                    'Error: ${e.toString()}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 30),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (kIsWeb) {
+                        // Use window.location.reload() equivalent
+                        _reloadWeb();
+                      }
+                    },
+                    child: Text('Reload Page'),
+                  ),
+                  SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () {
+                      // Try to run the app anyway
+                      runApp(
+                        ProviderScope(
+                          child: const WiguCareerApp(),
+                        ),
+                      );
+                    },
+                    child: Text('Continue Anyway'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -77,13 +141,30 @@ void main() async {
 Future<void> _initializeHive(Logger logger) async {
   logger.i('Initializing Hive database...');
   
-  // Initialize Hive for Flutter
-  await Hive.initFlutter();
-  
-  // Register all model adapters
-  _registerHiveAdapters(logger);
-  
-  logger.i('Hive database initialized with all adapters registered');
+  try {
+    if (kIsWeb) {
+      // Initialize Hive for web with more conservative approach
+      await Hive.initFlutter('career_assessment_web');
+      logger.i('Hive initialized for web environment');
+    } else {
+      // Initialize Hive for Flutter mobile/desktop
+      await Hive.initFlutter();
+      logger.i('Hive initialized for Flutter environment');
+    }
+    
+    // Register all model adapters with error handling
+    try {
+      _registerHiveAdapters(logger);
+      logger.i('Hive database initialized with all adapters registered');
+    } catch (e, stackTrace) {
+      logger.e('Failed to register Hive adapters', error: e, stackTrace: stackTrace);
+      // Continue anyway - some functionality may be limited
+    }
+  } catch (e, stackTrace) {
+    logger.e('Failed to initialize Hive', error: e, stackTrace: stackTrace);
+    // Rethrow to trigger fallback in main()
+    rethrow;
+  }
 }
 
 /// Register all Hive type adapters for the career assessment models
@@ -453,5 +534,14 @@ class WiguCareerApp extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Helper function to reload the web page
+void _reloadWeb() {
+  if (kIsWeb) {
+    // Simply throw an exception to restart the Flutter app
+    // This will cause the error boundary to catch and reload
+    throw Exception('App reload requested');
   }
 }
